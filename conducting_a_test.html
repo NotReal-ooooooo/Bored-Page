@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugging Honk</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            text-shadow: 2px 2px 4px #000000;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            text-shadow: 2px 2px 4px #000000;
+            font-size: 1.2em;
+        }
+        .health-bar-container {
+            position: absolute;
+            top: 20px;
+            width: 200px;
+            height: 20px;
+            border: 2px solid white;
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 100;
+        }
+        .health-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease-out;
+            border-radius: 8px;
+        }
+        #player-health-container { left: 20px; }
+        #player-health-fill { background-color: #00ff00; }
+        #follower-health-container { right: 20px; }
+        #follower-health-fill { background-color: #ff0000; }
+        #game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 3em;
+            text-shadow: 4px 4px 6px #000000;
+            z-index: 200;
+            display: none;
+            text-align: center;
+        }
+
+        /* Gear Icon Styles */
+        #gear-icon-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            padding: 5px;
+        }
+        .gear {
+            fill: #ecf0f1;
+            transform-origin: 50% 50%;
+            animation: rotate 8s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Settings Menu Styles */
+        #settings-menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            display: none; /* Initially hidden */
+            z-index: 300;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        #settings-menu h2 {
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+        .setting-item {
+            margin-bottom: 20px;
+        }
+        .setting-item label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .setting-item input[type="range"] {
+            width: 100%;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">Use WASD or Arrow Keys to Move and Turn the Player</div>
+    <div id="instructions">
+        <p>Press **V** to toggle between third-person and first-person views. In first-person mode, the mouse is locked and you can look around by moving it. The WASD or arrow keys now move you relative to your view direction. Press **Space** to jump! **The bushes are no longer solid.** A new red cube will follow you as long as you are not completely inside a bush. This cube will now fire red blobs that arc through the air and destroy bushes, but only when it is close enough to you! You can damage the red block by touching it, and it will damage you with its fire blobs.</p>
+    </div>
+
+    <div id="player-health-container" class="health-bar-container">
+        <div id="player-health-fill" class="health-bar-fill"></div>
+    </div>
+    <div id="follower-health-container" class="health-bar-container">
+        <div id="follower-health-fill" class="health-bar-fill"></div>
+    </div>
+
+    <div id="gear-icon-container">
+        <svg class="gear" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="40" />
+            <circle cx="50" cy="50" r="15" fill="#2c3e50" />
+            <path d="M 50,10 L 58,22 L 42,22 z" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(36 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(72 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(108 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(144 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(180 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(216 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(252 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(288 50 50)" />
+            <path d="M 88,42 L 88,58 L 78,50 z" transform="rotate(324 50 50)" />
+        </svg>
+    </div>
+
+    <div id="settings-menu">
+        <h2>Settings</h2>
+        <div class="setting-item">
+            <label for="sensitivity-slider">Mouse Sensitivity</label>
+            <input type="range" id="sensitivity-slider" min="0.0005" max="0.005" step="0.0001" value="0.002">
+        </div>
+        <button class="button" id="resume-button">Resume</button>
+    </div>
+
+    <div id="game-message"></div>
+
+    <!-- Three.js library is loaded from a CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        window.onload = function() {
+            // --- Setup the basic scene components ---
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 20);
+            camera.lookAt(0, 0, 0);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // --- Add Lighting to the scene ---
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 10, 7.5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -30;
+            directionalLight.shadow.camera.right = 30;
+            directionalLight.shadow.camera.top = 30;
+            directionalLight.shadow.camera.bottom = -30;
+            scene.add(directionalLight);
+
+            // --- Create the Ground Plane ---
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x654321 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // --- Create the Player (local) ---
+            const playerGeometry = new THREE.BoxGeometry(2, 2, 2);
+            const playerMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+            const player = new THREE.Mesh(playerGeometry, playerMaterial);
+            // Position the player so its base is on the ground at y=0
+            player.position.y = 1;
+            player.castShadow = true;
+            scene.add(player);
+            
+            // --- Create the Blocks (now spherical bushes) ---
+            function createBush(radius) {
+                const bushGroup = new THREE.Group();
+                const bushMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 });
+                const numSpheres = 10;
+                let maxSphereRadius = 0;
+                for (let i = 0; i < numSpheres; i++) {
+                    const sphereRadius = radius * (0.5 + Math.random() * 0.5);
+                    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+                    const sphereMesh = new THREE.Mesh(sphereGeometry, bushMaterial);
+                    const x = (Math.random() - 0.5) * radius * 2;
+                    const z = (Math.random() - 0.5) * radius * 2;
+                    const y = sphereRadius;
+                    sphereMesh.position.set(x, y, z);
+                    sphereMesh.castShadow = true;
+                    bushGroup.add(sphereMesh);
+                    if (sphereRadius > maxSphereRadius) {
+                        maxSphereRadius = sphereRadius;
+                    }
+                }
+                bushGroup.position.y = -radius/2;
+                // Return both the bush group and its effective radius for collision detection
+                return { mesh: bushGroup, radius: radius + maxSphereRadius };
+            }
+            let blocks = []; // Changed to 'let' so we can reassign it
+            const spawnedPositions = [];
+            const minDistance = 10;
+            const numBushes = Math.floor(Math.random() * 21) + 20;
+            for (let i = 0; i < numBushes; i++) {
+                let positionFound = false;
+                let newBushPosition;
+                let attempts = 0;
+                while (!positionFound && attempts < 50) {
+                    newBushPosition = new THREE.Vector3(
+                        (Math.random() * 80) - 40,
+                        0,
+                        (Math.random() * 80) - 40
+                    );
+                    let tooClose = false;
+                    for (const pos of spawnedPositions) {
+                        if (newBushPosition.distanceTo(pos) < minDistance) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (!tooClose) {
+                        positionFound = true;
+                    }
+                    attempts++;
+                }
+                if (positionFound) {
+                    const bushRadius = Math.random() * 2 + 1.5;
+                    const newBush = createBush(bushRadius);
+                    newBush.mesh.position.copy(newBushPosition);
+                    newBush.mesh.position.y = -bushRadius/2;
+                    scene.add(newBush.mesh);
+                    blocks.push(newBush);
+                    spawnedPositions.push(newBushPosition);
+                }
+            }
+
+            // --- Create the Follower Block ---
+            const followerGeometry = new THREE.BoxGeometry(2, 2, 2);
+            const followerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const follower = new THREE.Mesh(followerGeometry, followerMaterial);
+            // Position the follower so its base is on the ground at y=0
+            follower.position.set(50, 1, 50);
+            follower.castShadow = true;
+            scene.add(follower);
+            
+            // --- Health and Game State Variables ---
+            let playerHealth = 100;
+            let followerHealth = 100;
+            let gameIsOver = false;
+            let isPaused = false;
+
+            const playerHealthBar = document.getElementById('player-health-fill');
+            const followerHealthBar = document.getElementById('follower-health-fill');
+            const gameMessage = document.getElementById('game-message');
+
+            function updateHealthBars() {
+                playerHealthBar.style.width = `${playerHealth}%`;
+                followerHealthBar.style.width = `${followerHealth}%`;
+            }
+
+            // --- Projectile and Fire Effect Variables ---
+            let projectile = null;
+            let projectileVelocity = new THREE.Vector3();
+            let lastFireTime = 0;
+            const fireCooldown = 3000; // 3 seconds
+            const playerScale = 2; // From the BoxGeometry(2, 2, 2)
+            const fireRadius = playerScale * 3;
+            const fireDuration = 500; // milliseconds
+            const fireGeometry = new THREE.SphereGeometry(fireRadius, 32, 32);
+            const fireMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff4500,
+                transparent: true,
+                opacity: 0.5
+            });
+            const throwingRange = playerScale * 10;
+
+            // --- Handle Player Movement and Controls ---
+            const keys = {};
+            const playerSpeed = 0.2;
+            const rotationSpeed = 0.05;
+            const followerSpeed = 0.05;
+            let isFirstPersonView = false;
+            let isMouseLocked = false;
+            let onGround = false;
+            let playerVelocity = new THREE.Vector3();
+            const gravity = 0.05;
+            const jumpForce = 1.0;
+            
+            // Mouse movement variables
+            let mouseSensitivity = 0.002;
+            const cameraRotation = new THREE.Vector2();
+
+            // Set camera rotation order to avoid gimbal lock
+            camera.rotation.order = 'YXZ';
+
+            document.addEventListener('keydown', (event) => {
+                keys[event.key.toLowerCase()] = true;
+                if (event.key.toLowerCase() === 'v' && !gameIsOver && !isPaused) {
+                    isFirstPersonView = !isFirstPersonView;
+                    if (isFirstPersonView) {
+                        renderer.domElement.requestPointerLock();
+                    } else {
+                        document.exitPointerLock();
+                    }
+                }
+                if (event.key === ' ' && onGround && !gameIsOver && !isPaused) {
+                    playerVelocity.y = jumpForce;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                keys[event.key.toLowerCase()] = false;
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (isMouseLocked) {
+                    cameraRotation.y -= event.movementX * mouseSensitivity;
+                    cameraRotation.x -= event.movementY * mouseSensitivity;
+                    // Clamp vertical camera rotation to prevent looking upside down
+                    cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
+                }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                isMouseLocked = document.pointerLockElement === renderer.domElement;
+                if (!isMouseLocked && isFirstPersonView) {
+                    isFirstPersonView = false;
+                    // Reset camera to third person if pointer lock is lost
+                    camera.position.set(
+                        player.position.x + Math.sin(player.rotation.y) * 20,
+                        player.position.y + 10,
+                        player.position.z + Math.cos(player.rotation.y) * 20
+                    );
+                    camera.lookAt(player.position);
+                }
+            });
+
+            // --- Settings Menu Logic ---
+            const gearIcon = document.getElementById('gear-icon-container');
+            const settingsMenu = document.getElementById('settings-menu');
+            const resumeButton = document.getElementById('resume-button');
+            const sensitivitySlider = document.getElementById('sensitivity-slider');
+
+            gearIcon.addEventListener('click', () => {
+                isPaused = true;
+                settingsMenu.style.display = 'block';
+                document.exitPointerLock(); // Unlock the mouse
+            });
+
+            resumeButton.addEventListener('click', () => {
+                isPaused = false;
+                settingsMenu.style.display = 'none';
+                if (isFirstPersonView) {
+                    renderer.domElement.requestPointerLock();
+                }
+            });
+
+            sensitivitySlider.addEventListener('input', (event) => {
+                mouseSensitivity = parseFloat(event.target.value);
+            });
+
+            // --- New functions for the projectile and fire effect ---
+            function fireBlob() {
+                // Check if a projectile doesn't already exist, the cooldown is over, and the player is within range
+                const distance = follower.position.distanceTo(player.position);
+                if (projectile || Date.now() - lastFireTime < fireCooldown || distance > throwingRange) {
+                    return;
+                }
+                lastFireTime = Date.now();
+                
+                // Create the projectile (a small red blob)
+                const blobGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+                const blobMaterial = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
+                projectile = new THREE.Mesh(blobGeometry, blobMaterial);
+                projectile.position.copy(follower.position);
+                projectile.castShadow = true;
+                scene.add(projectile);
+                
+                // Calculate horizontal distance and a scaled initial Y velocity for a dynamic lob.
+                const horizontalDistance = new THREE.Vector2(player.position.x, player.position.z).distanceTo(new THREE.Vector2(follower.position.x, follower.position.z));
+                const horizontalSpeed = 0.7;
+                const timeOfFlight = horizontalDistance / horizontalSpeed;
+
+                // Physics-based calculation for initial vertical velocity to ensure the blob hits the target.
+                const initialYVelocity = (player.position.y - follower.position.y + 0.5 * gravity * timeOfFlight * timeOfFlight) / timeOfFlight + 0.2;
+                
+                const direction = new THREE.Vector3();
+                direction.subVectors(player.position, follower.position).normalize();
+                
+                // Set projectile velocity
+                projectileVelocity.set(
+                    direction.x * horizontalSpeed,
+                    initialYVelocity,
+                    direction.z * horizontalSpeed
+                );
+            }
+
+            function updateProjectile() {
+                if (projectile) {
+                    // Apply gravity
+                    projectileVelocity.y -= gravity;
+                    // Move the projectile directly towards the player's position
+                    projectile.position.add(projectileVelocity);
+
+                    // Check for ground collision
+                    if (projectile.position.y <= 0.5) {
+                        triggerFireEffect(projectile.position.x, projectile.position.z);
+                        // Remove the projectile from the scene
+                        scene.remove(projectile);
+                        projectile = null;
+                    }
+                }
+            }
+            
+            function triggerFireEffect(x, z) {
+                const fire = new THREE.Mesh(fireGeometry, fireMaterial.clone());
+                fire.position.set(x, 0.1, z);
+                scene.add(fire);
+                
+                // Animate the fire effect to expand and fade out
+                const startScale = 0.1;
+                const endScale = 1.0;
+                const startTime = Date.now();
+                
+                const animateFire = () => {
+                    const elapsedTime = Date.now() - startTime;
+                    const progress = elapsedTime / fireDuration;
+                    
+                    if (progress < 1) {
+                        // Grow the scale and decrease opacity
+                        const scale = startScale + (endScale - startScale) * progress;
+                        fire.scale.set(scale, scale, scale);
+                        fire.material.opacity = 0.5 - (0.5 * progress);
+                        requestAnimationFrame(animateFire);
+                    } else {
+                        scene.remove(fire);
+                    }
+                };
+                
+                animateFire();
+                destroyBushesInFireRadius(x, z);
+                checkPlayerDamage(fire.position);
+            }
+
+            function destroyBushesInFireRadius(x, z) {
+                const fireCenter = new THREE.Vector2(x, z);
+                // Create a new array of bushes to keep
+                const remainingBushes = [];
+                for (const bush of blocks) {
+                    const bushPos2D = new THREE.Vector2(bush.mesh.position.x, bush.mesh.position.z);
+                    const dist = bushPos2D.distanceTo(fireCenter);
+                    // Check if the bush is within the fire's radius
+                    if (dist < fireRadius + bush.radius) {
+                        scene.remove(bush.mesh);
+                    } else {
+                        remainingBushes.push(bush);
+                    }
+                }
+                // Update the blocks array
+                blocks = remainingBushes;
+            }
+
+            // --- Collision detection and health updates ---
+            const collisionDamage = 10;
+            const fireDamage = 5;
+
+            function checkPlayerDamage(firePosition) {
+                // Check if the player is in the fire radius
+                const fireCenter2D = new THREE.Vector2(firePosition.x, firePosition.z);
+                const playerPos2D = new THREE.Vector2(player.position.x, player.position.z);
+                const dist = playerPos2D.distanceTo(fireCenter2D);
+
+                // Ensure player is not in a bush
+                let isInsideAnyBush = false;
+                for(const bush of blocks) {
+                    for (const sphere of bush.mesh.children) {
+                        const sphereWorldPosition = new THREE.Vector3();
+                        sphere.getWorldPosition(sphereWorldPosition);
+                        const playerPos2D = new THREE.Vector2(player.position.x, player.position.z);
+                        const spherePos2D = new THREE.Vector2(sphereWorldPosition.x, sphereWorldPosition.z);
+                        const bushDist = playerPos2D.distanceTo(spherePos2D);
+                        const sphereRadius = sphere.geometry.parameters.radius;
+                        if (bushDist < sphereRadius + 0.3) {
+                            isInsideAnyBush = true;
+                            break;
+                        }
+                    }
+                    if (isInsideAnyBush) {
+                        break;
+                    }
+                }
+                
+                if (dist < fireRadius + 0.5 && !isInsideAnyBush) {
+                    playerHealth -= fireDamage;
+                    if (playerHealth <= 0) {
+                        playerHealth = 0;
+                        endGame('lose');
+                    }
+                    updateHealthBars();
+                }
+            }
+
+            function checkFollowerDamage() {
+                const dist = player.position.distanceTo(follower.position);
+                const collisionThreshold = player.geometry.parameters.width / 2 + follower.geometry.parameters.width / 2;
+                if (dist < collisionThreshold) {
+                    followerHealth -= collisionDamage;
+                    if (followerHealth <= 0) {
+                        followerHealth = 0;
+                        endGame('win');
+                    }
+                    updateHealthBars();
+                }
+            }
+
+            function endGame(result) {
+                gameIsOver = true;
+                if (result === 'win') {
+                    gameMessage.textContent = 'You Win!';
+                } else {
+                    gameMessage.textContent = 'Game Over';
+                }
+                gameMessage.style.display = 'block';
+            }
+
+            // The game loop: updates the scene on every frame
+            function animate() {
+                if (gameIsOver || isPaused) {
+                    requestAnimationFrame(animate);
+                    return;
+                }
+
+                requestAnimationFrame(animate);
+                
+                // Player Physics and Movement
+                let moveDirection = new THREE.Vector3();
+
+                if (isFirstPersonView) {
+                    // Update camera rotation from mouse movement
+                    camera.rotation.y = cameraRotation.y;
+                    camera.rotation.x = cameraRotation.x;
+
+                    // Get camera's forward and right vectors
+                    const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+
+                    // Keyboard movement relative to camera direction
+                    if (keys['w'] || keys['arrowup']) {
+                        moveDirection.add(cameraForward);
+                    }
+                    if (keys['s'] || keys['arrowdown']) {
+                        moveDirection.sub(cameraForward);
+                    }
+                    if (keys['a'] || keys['arrowleft']) {
+                        moveDirection.sub(cameraRight);
+                    }
+                    if (keys['d'] || keys['arrowright']) {
+                        moveDirection.add(cameraRight);
+                    }
+                    moveDirection.normalize().multiplyScalar(playerSpeed);
+                    player.position.x += moveDirection.x;
+                    player.position.z += moveDirection.z;
+                } else {
+                    // Third-person controls
+                    if (keys['a'] || keys['arrowleft']) {
+                        player.rotation.y += rotationSpeed;
+                    }
+                    if (keys['d'] || keys['arrowright']) {
+                        player.rotation.y -= rotationSpeed;
+                    }
+                    let forward = 0;
+                    if (keys['w'] || keys['arrowup']) {
+                        forward = -playerSpeed;
+                    } else if (keys['s'] || keys['arrowdown']) {
+                        forward = playerSpeed;
+                    }
+                    const horizontalVelocity = new THREE.Vector3(
+                        Math.sin(player.rotation.y) * forward,
+                        0,
+                        Math.cos(player.rotation.y) * forward
+                    );
+                    player.position.x += horizontalVelocity.x;
+                    player.position.z += horizontalVelocity.z;
+                }
+
+                playerVelocity.y -= gravity;
+                player.position.y += playerVelocity.y;
+                
+                onGround = false;
+                const groundHeight = 1;
+                if (player.position.y <= groundHeight) {
+                    player.position.y = groundHeight;
+                    playerVelocity.y = 0;
+                    onGround = true;
+                }
+                
+                // Follower logic: only move if the player is not inside a bush
+                let isInsideAnyBush = false;
+                
+                for(const bush of blocks) {
+                    // Check each individual sphere within the bush group
+                    for (const sphere of bush.mesh.children) {
+                        const sphereWorldPosition = new THREE.Vector3();
+                        sphere.getWorldPosition(sphereWorldPosition);
+                        const playerPos2D = new THREE.Vector2(player.position.x, player.position.z);
+                        const spherePos2D = new THREE.Vector2(sphereWorldPosition.x, sphereWorldPosition.z);
+                        const dist = playerPos2D.distanceTo(spherePos2D);
+                        // A sphere's radius is relative to its geometry, get the true size
+                        const sphereRadius = sphere.geometry.parameters.radius;
+                        // Check if the player is within the sphere's radius with a tighter threshold
+                        if (dist < sphereRadius + 0.3) {
+                            isInsideAnyBush = true;
+                            break;
+                        }
+                    }
+                    if (isInsideAnyBush) {
+                        break;
+                    }
+                }
+                
+                // The follower only moves if the player is not inside a bush
+                if (!isInsideAnyBush) {
+                    // Create a target position vector that is at the same height as the follower
+                    // but at the player's horizontal coordinates.
+                    const targetPosition = new THREE.Vector3(player.position.x, follower.position.y, player.position.z);
+                    
+                    follower.lookAt(targetPosition);
+                    const direction = new THREE.Vector3();
+                    direction.subVectors(targetPosition, follower.position).normalize();
+                    follower.position.addScaledVector(direction, followerSpeed);
+                    
+                    // The follower now fires a blob at the player
+                    fireBlob();
+                    checkFollowerDamage();
+                }
+
+                // Update the projectile's position
+                if (projectile) {
+                    updateProjectile();
+                }
+                
+                // Update the camera based on the current view mode
+                if (isFirstPersonView) {
+                    camera.position.copy(player.position);
+                    camera.position.y += 0.5;
+                    player.rotation.y = cameraRotation.y;
+                } else {
+                    const cameraDistance = 20;
+                    camera.position.set(
+                        player.position.x + Math.sin(player.rotation.y) * cameraDistance,
+                        player.position.y + 10,
+                        player.position.z + Math.cos(player.rotation.y) * cameraDistance
+                    );
+                    camera.lookAt(player.position);
+                }
+                
+                renderer.render(scene, camera);
+            }
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            // Initial setup
+            updateHealthBars();
+            animate();
+        };
+    </script>
+</body>
+</html>
