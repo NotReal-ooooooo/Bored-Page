@@ -551,7 +551,14 @@
                     camera.getWorldDirection(forwardVector);
                 } else {
                     player.getWorldPosition(spawnPosition);
-                    player.getWorldDirection(forwardVector);
+                    // Manually calculate the forward vector based on player's y-rotation.
+                    // A rotation of 0 in Three.js faces the negative Z axis, so we
+                    // use negative sine and cosine to get the forward direction.
+                    forwardVector.set(
+                        -Math.sin(player.rotation.y),
+                        0,
+                        -Math.cos(player.rotation.y)
+                    ).normalize();
                 }
                 
                 newProjectile.position.copy(spawnPosition);
@@ -770,4 +777,5 @@
     </script>
 </body>
 </html>
+
 
