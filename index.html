@@ -131,7 +131,7 @@
 
     <div id="info">Use WASD or Arrow Keys to Move and Turn the Player</div>
     <div id="instructions">
-        <p>Press **V** to toggle between third-person and first-person views. In first-person mode, the mouse is locked and you can look around by moving it. The WASD or arrow keys now move you relative to your view direction. Press **Space** to jump! **The bushes are no longer solid.** A new red cube will follow you as long as you are not completely inside a bush. This cube will now fire red blobs that arc through the air and destroy bushes, but only when it is close enough to you! You can damage the red block by touching it, and it will damage you with its fire blobs.</p>
+        <p>Press **V** to toggle between third-person and first-person views. In first-person mode, the mouse is locked and you can look around by moving it. The WASD or arrow keys now move you relative to your view direction. Press **Space** to jump! **Press X or L to shoot!** **The bushes are no longer solid.** A new red cube will follow you as long as you are not completely inside a bush. This cube will now fire red blobs that arc through the air and destroy bushes, but only when it is close enough to you! You can damage the red block by touching it, and it will damage you with its fire blobs.</p>
     </div>
 
     <div id="player-health-container" class="health-bar-container">
@@ -317,6 +317,13 @@
                 opacity: 0.5
             });
             const throwingRange = playerScale * 10;
+            
+            // Player projectile variables
+            let playerProjectile = null;
+            let playerProjectileSpeed = 1.0;
+            const playerShotDamage = 20;
+            let playerLastShotTime = 0;
+            const playerShotCooldown = 500; // 0.5 seconds
 
             // --- Handle Player Movement and Controls ---
             const keys = {};
@@ -349,6 +356,12 @@
                 }
                 if (event.key === ' ' && onGround && !gameIsOver && !isPaused) {
                     playerVelocity.y = jumpForce;
+                }
+                
+                // New logic for player shooting
+                if ((event.key.toLowerCase() === 'x' || event.key.toLowerCase() === 'l') && !gameIsOver && !isPaused && !playerProjectile && (Date.now() - playerLastShotTime > playerShotCooldown)) {
+                    firePlayerProjectile();
+                    playerLastShotTime = Date.now();
                 }
             });
 
@@ -483,7 +496,7 @@
                 
                 animateFire();
                 destroyBushesInFireRadius(x, z);
-                checkPlayerDamage(fire.position);
+                // checkPlayerDamage(fire.position); // Player no longer takes damage from fireballs
             }
 
             function destroyBushesInFireRadius(x, z) {
@@ -504,45 +517,57 @@
                 blocks = remainingBushes;
             }
 
+            // --- Player shooting functions ---
+            function firePlayerProjectile() {
+                if (!isFirstPersonView) return; // Player can only shoot in first person view
+                
+                const projectileGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+                const projectileMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+                playerProjectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+                
+                // Position the projectile at the camera's location
+                const spawnPosition = new THREE.Vector3();
+                camera.getWorldPosition(spawnPosition);
+                playerProjectile.position.copy(spawnPosition);
+                playerProjectile.castShadow = true;
+                scene.add(playerProjectile);
+                
+                // Set the projectile's velocity based on the camera's direction
+                const forwardVector = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                playerProjectile.velocity = forwardVector.multiplyScalar(playerProjectileSpeed);
+            }
+            
+            function updatePlayerProjectile() {
+                if (!playerProjectile) return;
+                
+                // Move the projectile
+                playerProjectile.position.add(playerProjectile.velocity);
+                
+                // Check for collision with the follower
+                const dist = playerProjectile.position.distanceTo(follower.position);
+                if (dist < 1.5) { // Collision threshold
+                    followerHealth -= playerShotDamage;
+                    if (followerHealth <= 0) {
+                        followerHealth = 0;
+                        endGame('win');
+                    }
+                    updateHealthBars();
+                    scene.remove(playerProjectile);
+                    playerProjectile = null;
+                    return;
+                }
+                
+                // Check for max travel distance
+                const maxDistance = 50;
+                if (playerProjectile.position.distanceTo(player.position) > maxDistance) {
+                    scene.remove(playerProjectile);
+                    playerProjectile = null;
+                }
+            }
+
             // --- Collision detection and health updates ---
             const collisionDamage = 10;
             const fireDamage = 5;
-
-            function checkPlayerDamage(firePosition) {
-                // Check if the player is in the fire radius
-                const fireCenter2D = new THREE.Vector2(firePosition.x, firePosition.z);
-                const playerPos2D = new THREE.Vector2(player.position.x, player.position.z);
-                const dist = playerPos2D.distanceTo(fireCenter2D);
-
-                // Ensure player is not in a bush
-                let isInsideAnyBush = false;
-                for(const bush of blocks) {
-                    for (const sphere of bush.mesh.children) {
-                        const sphereWorldPosition = new THREE.Vector3();
-                        sphere.getWorldPosition(sphereWorldPosition);
-                        const playerPos2D = new THREE.Vector2(player.position.x, player.position.z);
-                        const spherePos2D = new THREE.Vector2(sphereWorldPosition.x, sphereWorldPosition.z);
-                        const bushDist = playerPos2D.distanceTo(spherePos2D);
-                        const sphereRadius = sphere.geometry.parameters.radius;
-                        if (bushDist < sphereRadius + 0.3) {
-                            isInsideAnyBush = true;
-                            break;
-                        }
-                    }
-                    if (isInsideAnyBush) {
-                        break;
-                    }
-                }
-                
-                if (dist < fireRadius + 0.5 && !isInsideAnyBush) {
-                    playerHealth -= fireDamage;
-                    if (playerHealth <= 0) {
-                        playerHealth = 0;
-                        endGame('lose');
-                    }
-                    updateHealthBars();
-                }
-            }
 
             function checkFollowerDamage() {
                 const dist = player.position.distanceTo(follower.position);
@@ -683,6 +708,9 @@
                     updateProjectile();
                 }
                 
+                // Update player's projectile
+                updatePlayerProjectile();
+
                 // Update the camera based on the current view mode
                 if (isFirstPersonView) {
                     camera.position.copy(player.position);
