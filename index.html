@@ -82,23 +82,21 @@ button1:hover {
     }
  
 #credits {
-    position: fixed;
-    top: 20px;
-    right: 90px;
-    font-size: 20px;
-    font-weight: bold;
-    color: #000000;
-    z-index: 30;
+  position: fixed;
+  top: 20px;
+  right: 90px;
+  font-size: 20px;
+  font-weight: bold;
+  color: #000000;
+  z-index: 30;
 
-    /* Outline options */
-    -webkit-text-stroke: 1px white; /* Chrome/Edge/Safari */
-    text-shadow: 
-        1px 1px 0 #fff,
-       -1px -1px 0 #fff,
-        1px -1px 0 #fff,
-       -1px  1px 0 #fff; /* fallback for others */
+  /* 1px outline using shadows */
+  text-shadow: 
+    -1px -1px 0 #ffffff,  
+     1px -1px 0 #ffffff,
+    -1px  1px 0 #ffffff,
+     1px  1px 0 #ffffff;
 }
-
     
     #thingAtTheBottom {
   position: absolute;
