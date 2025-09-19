@@ -47,7 +47,7 @@
       height: 50px;
       background-color: #000000;
       opacity: 0.8;
-      z-index: 9999;     
+      z-index: 20;     
  }
     
 button:hover {
@@ -80,7 +80,17 @@ button1:hover {
       color: #FFFFFF;
       z-index: 10;
     }
-
+ 
+  #credits {
+    possition: fixed;
+    top: 20px;
+    right: 90px;
+    font-size: 40px;
+    font-weight: bold;
+    color: #000000;
+    z-index: 30;
+    }
+    
     #thingAtTheBottom {
   position: absolute;
   top: 1000px;
@@ -96,6 +106,7 @@ button1:hover {
 </head>
 <body>
 
+  <div id=credits>credits</div>
   <div id=thingOnTop></div>
   <div id=thingAtTheBottom></div>
   <div id=hbul>ARE YOU BORED?</div>
