@@ -3,52 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bored Page | 3D stuff</title>
+    <title>Plugging Honk</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
-        canvas { display: block; }
-        #info {
+        /* General Body and Canvas Styles */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: sans-serif; 
+        }
+        canvas { 
+            display: block; 
+        }
+
+        /* UI Overlay Elements */
+        #info, #instructions {
             position: absolute;
-            top: 10px;
             width: 100%;
             text-align: center;
             color: white;
             z-index: 100;
             text-shadow: 2px 2px 4px #000000;
         }
+
+        #info {
+            top: 10px;
+        }
+
         #instructions {
-            position: absolute;
             bottom: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            z-index: 100;
-            text-shadow: 2px 2px 4px #000000;
             font-size: 1.2em;
         }
-        #game-message {
+
+        #game-message, #wave-message {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 3em;
             text-shadow: 4px 4px 6px #000000;
             z-index: 200;
             display: none;
             text-align: center;
         }
+
+        #game-message {
+            font-size: 3em;
+        }
+
         #wave-message {
-            position: absolute;
             top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
             font-size: 2em;
-            text-shadow: 2px 2px 4px #000000;
-            z-index: 200;
-            display: none;
-            text-align: center;
         }
 
         /* Gear Icon Styles */
@@ -64,18 +68,20 @@
             border-radius: 50%;
             padding: 5px;
         }
+        
         .gear {
             fill: #ecf0f1;
             transform-origin: 50% 50%;
             animation: rotate 8s linear infinite;
         }
+
         @keyframes rotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
 
-        /* Settings Menu Styles */
-        #settings-menu {
+        /* Menu Styles */
+        #settings-menu, #buff-menu {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -86,25 +92,30 @@
             border-radius: 15px;
             color: white;
             text-align: center;
-            display: none; /* Initially hidden */
+            display: none;
             z-index: 300;
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
         }
-        #settings-menu h2 {
+
+        #settings-menu h2, #buff-menu h2 {
             margin-top: 0;
             font-size: 1.5em;
         }
+
         .setting-item {
             margin-bottom: 20px;
         }
+
         .setting-item label {
             display: block;
             margin-bottom: 5px;
         }
+
         .setting-item input[type="range"] {
             width: 100%;
         }
+
         .button {
             padding: 10px 20px;
             background-color: #3498db;
@@ -115,8 +126,55 @@
             font-size: 1em;
             transition: background-color 0.2s ease;
         }
+
         .button:hover {
             background-color: #2980b9;
+        }
+
+        /* Buff Menu Specific Styles */
+        #buff-menu {
+            width: 500px;
+        }
+
+        #buff-menu h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        
+        #buff-choices {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+        }
+
+        .buff-button {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-color: #34495e;
+            border: 2px solid #2c3e50;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .buff-button:hover {
+            background-color: #496277;
+            transform: translateY(-5px);
+        }
+
+        .buff-title {
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        .buff-description {
+            font-size: 0.9em;
+            opacity: 0.8;
         }
 
         /* Crosshair Styles */
@@ -130,13 +188,15 @@
             background-color: white;
             border-radius: 50%;
             z-index: 99;
-            pointer-events: none; /* Ignore mouse events */
-            display: none; /* Initially hidden */
+            pointer-events: none;
+            display: none;
         }
     </style>
 </head>
 <body>
 
+     <audio id="shoot-sound" src="shooting-n-reload.mp3" preload="auto"></audio>
+    
     <div id="info">Use WASD or Arrow Keys to Move and Turn the Player</div>
 
     <div id="crosshair"></div>
@@ -166,6 +226,20 @@
         </div>
         <button class="button" id="resume-button">Resume</button>
     </div>
+    
+    <div id="buff-menu">
+        <h2>Choose Your Buff</h2>
+        <div id="buff-choices">
+            <div id="buff-choice-1" class="buff-button">
+                <span class="buff-title"></span>
+                <span class="buff-description"></span>
+            </div>
+            <div id="buff-choice-2" class="buff-button">
+                <span class="buff-title"></span>
+                <span class="buff-description"></span>
+            </div>
+        </div>
+    </div>
 
     <div id="game-message"></div>
     <div id="wave-message"></div>
@@ -179,8 +253,10 @@
             let player;
             let followers = [];
             let superFollowers = [];
+            let omegaFollowers = []; // NEW: Array for the new enemy type
             let healthOrbs = [];
             let playerHealth = 100;
+            let playerMaxHealth = 100;
             let gameIsOver = false;
             let isPaused = false;
             let isFirstPersonView = false;
@@ -190,38 +266,73 @@
             let blocks = [];
             const playerProjectiles = [];
             const followerProjectiles = [];
-            let lastFireTime = 0;
             let playerLastShotTime = 0;
             let waveCount = 0;
+            let isWaveTransitioning = false;
             
             // Mouse movement variables for first-person view
             let isMouseLocked = false;
             let cameraRotation = new THREE.Vector2();
             
-            // --- Game Constants ---
-            const playerSpeed = 0.2;
+            // --- Game Constants (These will be modified by buffs) ---
+            let playerSpeed = 0.2;
             const rotationSpeed = 0.05;
             const followerSpeed = 0.05;
             const superFollowerSpeed = 0.07;
+            const omegaFollowerSpeed = 0.09; // NEW: Speed for the new enemy
             const gravity = 0.05;
             const jumpForce = 1.0;
             const followerProjectileDamage = 15;
             const followerExplosionDamage = 20;
             const superFollowerProjectileDamage = 35;
             const superFollowerExplosionDamage = 40;
+            const omegaFollowerProjectileDamage = 60; // NEW: Damage for the new enemy's projectile
+            const omegaFollowerExplosionDamage = 80; // NEW: Explosion damage for the new enemy's projectile
             const fireCooldown = 1500;
             const superFireCooldown = 1000;
-            const playerShotDamage = 20;
-            const playerShotCooldown = 500;
+            const omegaFireCooldown = 750; // NEW: Cooldown for the new enemy's fire
+            let playerShotDamage = 20;
+            let playerShotCooldown = 500;
             const playerProjectileSpeed = 1.0;
             const fireRadius = 7;
             const fireDuration = 500;
             const throwingRange = 20;
             const initialFollowerCount = 2;
-            const worldRadius = 50; // Max distance from center
-            const voidYLevel = -10; // The Y level at which the player "falls into the void"
+            const worldRadius = 50;
+            const voidYLevel = -10;
             const combinationThreshold = 5;
+            const omegaFollowerThreshold = 5; // NEW: The number of super followers needed to combine
             const healthOrbHealAmount = 10;
+            const followerMaxHealth = 100;
+            const superFollowerMaxHealth = 500;
+            const omegaFollowerMaxHealth = 2500; // NEW: Health for the new enemy
+            
+            // --- Buff Definitions ---
+            const buffs = [
+                {
+                    name: "Player Damage Up",
+                    description: "Your attacks deal more damage.",
+                    apply: () => { playerShotDamage += 10; }
+                },
+                {
+                    name: "Shooting Speed Up",
+                    description: "Decreases the time between your shots.",
+                    apply: () => { playerShotCooldown = Math.max(100, playerShotCooldown - 100); }
+                },
+                {
+                    name: "Player Speed Up",
+                    description: "Increases your movement speed.",
+                    apply: () => { playerSpeed += 0.05; }
+                },
+                {
+                    name: "Health Boost",
+                    description: "Increases your max health and restores health.",
+                    apply: () => {
+                        playerMaxHealth += 25;
+                        playerHealth = Math.min(playerMaxHealth, playerHealth + 25);
+                    }
+                }
+            ];
             
             // --- HTML Elements ---
             const gameMessage = document.getElementById('game-message');
@@ -231,6 +342,9 @@
             const settingsMenu = document.getElementById('settings-menu');
             const resumeButton = document.getElementById('resume-button');
             const sensitivitySlider = document.getElementById('sensitivity-slider');
+            const buffMenu = document.getElementById('buff-menu');
+            const buffChoice1Button = document.getElementById('buff-choice-1');
+            const buffChoice2Button = document.getElementById('buff-choice-2');
             
             let mouseSensitivity = parseFloat(sensitivitySlider.value);
             
@@ -331,8 +445,10 @@
                 gameIsOver = false;
                 isPaused = false;
                 playerHealth = 100;
+                playerMaxHealth = 100;
                 gameMessage.style.display = 'none';
                 settingsMenu.style.display = 'none';
+                buffMenu.style.display = 'none';
                 crosshair.style.display = 'none';
                 isFirstPersonView = false;
                 camera.position.set(0, 10, 20);
@@ -355,17 +471,22 @@
                 healthBarContainer.add(containerMesh);
                 healthBarContainer.add(fillMesh);
                 healthBarContainer.fillMesh = fillMesh;
+                
+                // Store the original width for scaling calculations
+                healthBarContainer.userData.width = width; 
+                
                 return healthBarContainer;
             }
             
-            function updateHealthBar(healthBar, currentHealth) {
-                const newScale = currentHealth / 100;
+            function updateHealthBar(healthBar, currentHealth, maxHealth) {
+                const newScale = currentHealth / maxHealth;
+                const barWidth = healthBar.userData.width;
                 healthBar.fillMesh.scale.x = newScale;
-                healthBar.fillMesh.position.x = -1 * (1 - newScale); // Adjust position to maintain left alignment
+                healthBar.fillMesh.position.x = -(barWidth / 2) * (1 - newScale);
                 
-                if (currentHealth > 50) {
+                if (currentHealth / maxHealth > 0.5) {
                     healthBar.fillMesh.material.color.setHex(0x00ff00);
-                } else if (currentHealth > 25) {
+                } else if (currentHealth / maxHealth > 0.25) {
                     healthBar.fillMesh.material.color.setHex(0xffff00);
                 } else {
                     healthBar.fillMesh.material.color.setHex(0xff0000);
@@ -403,6 +524,38 @@
                 orb.position.y = 0.5;
                 scene.add(orb);
                 healthOrbs.push(orb);
+            }
+            
+            // NEW: Combines 5 super followers into a single, stronger omega follower
+            function combineSuperFollowers() {
+                const superFollowersToCombine = superFollowers.slice(0, omegaFollowerThreshold);
+                let totalPos = new THREE.Vector3();
+                superFollowersToCombine.forEach(f => {
+                    totalPos.add(f.mesh.position);
+                    scene.remove(f.mesh);
+                });
+                
+                const newPos = totalPos.divideScalar(superFollowersToCombine.length);
+                
+                const omegaFollowerGeometry = new THREE.BoxGeometry(6, 6, 6);
+                const omegaFollowerMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+                const newOmegaFollowerMesh = new THREE.Mesh(omegaFollowerGeometry, omegaFollowerMaterial);
+                newOmegaFollowerMesh.position.copy(newPos);
+                newOmegaFollowerMesh.castShadow = true;
+                scene.add(newOmegaFollowerMesh);
+
+                const omegaFollowerHealthBar = createHealthBar(6, 0.6);
+                omegaFollowerHealthBar.position.y = 6;
+                newOmegaFollowerMesh.add(omegaFollowerHealthBar);
+
+                omegaFollowers.push({
+                    mesh: newOmegaFollowerMesh,
+                    health: omegaFollowerMaxHealth,
+                    healthBar: omegaFollowerHealthBar,
+                    lastFireTime: 0
+                });
+
+                superFollowers.splice(0, omegaFollowerThreshold);
             }
 
             // --- Event Listeners ---
@@ -470,6 +623,26 @@
             sensitivitySlider.addEventListener('input', (event) => {
                 mouseSensitivity = parseFloat(event.target.value);
             });
+            
+            buffChoice1Button.addEventListener('click', () => {
+                const chosenBuff = buffChoice1Button.buff;
+                chosenBuff.apply();
+                buffMenu.style.display = 'none';
+                isPaused = false;
+                isWaveTransitioning = false;
+                updateHealthBar(player.healthBar, playerHealth, playerMaxHealth);
+                spawnNewWave(initialFollowerCount * Math.pow(2, waveCount));
+            });
+            
+            buffChoice2Button.addEventListener('click', () => {
+                const chosenBuff = buffChoice2Button.buff;
+                chosenBuff.apply();
+                buffMenu.style.display = 'none';
+                isPaused = false;
+                isWaveTransitioning = false;
+                updateHealthBar(player.healthBar, playerHealth, playerMaxHealth);
+                spawnNewWave(initialFollowerCount * Math.pow(2, waveCount));
+            });
 
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -502,7 +675,7 @@
 
                 superFollowers.push({
                     mesh: newSuperFollowerMesh,
-                    health: 500,
+                    health: superFollowerMaxHealth,
                     healthBar: superFollowerHealthBar,
                     lastFireTime: 0
                 });
@@ -510,30 +683,27 @@
                 followers.splice(0, combinationThreshold);
             }
 
-            function fireBlob() {
-                if (followers.length === 0 || Date.now() - lastFireTime < fireCooldown) {
+            function fireBlob(follower) {
+                if (Date.now() - follower.lastFireTime < fireCooldown) {
                     return;
                 }
                 
-                // Pick a random follower to fire from
-                const followerToFire = followers[Math.floor(Math.random() * followers.length)];
-                
-                const distance = followerToFire.mesh.position.distanceTo(player.position);
+                const distance = follower.mesh.position.distanceTo(player.position);
                 if (distance > throwingRange) {
                     return;
                 }
                 
-                lastFireTime = Date.now();
+                follower.lastFireTime = Date.now();
                 
                 const blobGeometry = new THREE.SphereGeometry(0.5, 16, 16);
                 const blobMaterial = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
                 const projectile = new THREE.Mesh(blobGeometry, blobMaterial);
-                projectile.position.copy(followerToFire.mesh.position);
+                projectile.position.copy(follower.mesh.position);
                 projectile.castShadow = true;
                 scene.add(projectile);
                 
                 const horizontalSpeed = 0.7;
-                const horizontalDistance = new THREE.Vector2(player.position.x, player.position.z).distanceTo(new THREE.Vector2(followerToFire.mesh.position.x, followerToFire.mesh.position.z));
+                const horizontalDistance = new THREE.Vector2(player.position.x, player.position.z).distanceTo(new THREE.Vector2(follower.mesh.position.x, follower.mesh.position.z));
                 const timeToHit = horizontalDistance / horizontalSpeed;
                 
                 const predictedPlayerPosition = new THREE.Vector3(
@@ -542,10 +712,10 @@
                     player.position.z
                 );
 
-                const initialYVelocity = (predictedPlayerPosition.y - followerToFire.mesh.position.y + 0.5 * gravity * timeToHit * timeToHit) / timeToHit + 0.2;
+                const initialYVelocity = (predictedPlayerPosition.y - follower.mesh.position.y + 0.5 * gravity * timeToHit * timeToHit) / timeToHit + 0.2;
                 
                 const direction = new THREE.Vector3();
-                direction.subVectors(predictedPlayerPosition, followerToFire.mesh.position).normalize();
+                direction.subVectors(predictedPlayerPosition, follower.mesh.position).normalize();
                 
                 projectile.velocity = new THREE.Vector3(
                     direction.x * horizontalSpeed,
@@ -598,12 +768,56 @@
 
                 followerProjectiles.push({ mesh: projectile, damage: superFollowerProjectileDamage, explosionDamage: superFollowerExplosionDamage });
             }
+            
+            // NEW: Firing function for the new omega follower
+            function fireOmegaBlob(omegaFollower) {
+                 if (Date.now() - omegaFollower.lastFireTime < omegaFireCooldown) {
+                    return;
+                }
+
+                const distance = omegaFollower.mesh.position.distanceTo(player.position);
+                if (distance > throwingRange * 2) {
+                    return;
+                }
+
+                omegaFollower.lastFireTime = Date.now();
+
+                const blobGeometry = new THREE.SphereGeometry(1.5, 16, 16);
+                const blobMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+                const projectile = new THREE.Mesh(blobGeometry, blobMaterial);
+                projectile.position.copy(omegaFollower.mesh.position);
+                projectile.castShadow = true;
+                scene.add(projectile);
+
+                const horizontalSpeed = 1.1;
+                const horizontalDistance = new THREE.Vector2(player.position.x, player.position.z).distanceTo(new THREE.Vector2(omegaFollower.mesh.position.x, omegaFollower.mesh.position.z));
+                const timeToHit = horizontalDistance / horizontalSpeed;
+
+                const predictedPlayerPosition = new THREE.Vector3(
+                    player.position.x,
+                    player.position.y,
+                    player.position.z
+                );
+
+                const initialYVelocity = (predictedPlayerPosition.y - omegaFollower.mesh.position.y + 0.5 * gravity * timeToHit * timeToHit) / timeToHit + 0.2;
+
+                const direction = new THREE.Vector3();
+                direction.subVectors(predictedPlayerPosition, omegaFollower.mesh.position).normalize();
+
+                projectile.velocity = new THREE.Vector3(
+                    direction.x * horizontalSpeed,
+                    initialYVelocity,
+                    direction.z * horizontalSpeed
+                );
+
+                followerProjectiles.push({ mesh: projectile, damage: omegaFollowerProjectileDamage, explosionDamage: omegaFollowerExplosionDamage });
+            }
 
             function updateFollowerProjectiles() {
                 const projectilesToRemove = [];
                 followerProjectiles.forEach((projectile, index) => {
-                    projectile.mesh.velocity.y -= gravity;
                     projectile.mesh.position.add(projectile.mesh.velocity);
+                    projectile.mesh.velocity.y -= gravity;
 
                     const distToPlayer = projectile.mesh.position.distanceTo(player.position);
                     if (distToPlayer < 1.5) {
@@ -612,7 +826,7 @@
                             playerHealth = 0;
                             endGame('lose');
                         }
-                        updateHealthBar(player.healthBar, playerHealth);
+                        updateHealthBar(player.healthBar, playerHealth, playerMaxHealth);
                         triggerFireEffect(projectile.mesh.position.x, projectile.mesh.position.z, projectile.explosionDamage);
                         scene.remove(projectile.mesh);
                         projectilesToRemove.push(index);
@@ -648,7 +862,7 @@
                         playerHealth = 0;
                         endGame('lose');
                     }
-                    updateHealthBar(player.healthBar, playerHealth);
+                    updateHealthBar(player.healthBar, playerHealth, playerMaxHealth);
                 }
 
                 const startScale = 0.1;
@@ -691,6 +905,11 @@
                 const projectileGeometry = new THREE.SphereGeometry(0.2, 16, 16);
                 const projectileMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
                 const newProjectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+
+                 const shootSound = document.getElementById('shoot-sound');
+                shootSound.currentTime = 0; // rewind to start
+                shootSound.play();
+
                 
                 const forwardVector = new THREE.Vector3();
                 const spawnPosition = new THREE.Vector3();
@@ -718,6 +937,7 @@
                 const projectilesToRemove = [];
                 const followersToRemove = [];
                 const superFollowersToRemove = [];
+                const omegaFollowersToRemove = []; // NEW: Array for omega followers to remove
                 const maxDistance = 100;
 
                 playerProjectiles.forEach((proj, projIndex) => {
@@ -730,7 +950,7 @@
                         const dist = proj.position.distanceTo(follower.mesh.position);
                         if (dist < 1.5) {
                             follower.health -= playerShotDamage;
-                            updateHealthBar(follower.healthBar, follower.health);
+                            updateHealthBar(follower.healthBar, follower.health, followerMaxHealth);
                             if (follower.health <= 0) {
                                 followersToRemove.push(followerIndex);
                                 createHealthOrb(follower.mesh.position);
@@ -744,10 +964,24 @@
                         const dist = proj.position.distanceTo(superFollower.mesh.position);
                         if (dist < 2.5) {
                             superFollower.health -= playerShotDamage;
-                            updateHealthBar(superFollower.healthBar, superFollower.health);
+                            updateHealthBar(superFollower.healthBar, superFollower.health, superFollowerMaxHealth);
                             if (superFollower.health <= 0) {
                                 superFollowersToRemove.push(superIndex);
                                 createHealthOrb(superFollower.mesh.position);
+                            }
+                            hitSomething = true;
+                        }
+                    });
+                    
+                    // NEW: Check for collision with omega followers
+                    omegaFollowers.forEach((omegaFollower, omegaIndex) => {
+                        const dist = proj.position.distanceTo(omegaFollower.mesh.position);
+                        if (dist < 3.5) {
+                            omegaFollower.health -= playerShotDamage;
+                            updateHealthBar(omegaFollower.healthBar, omegaFollower.health, omegaFollowerMaxHealth);
+                            if (omegaFollower.health <= 0) {
+                                omegaFollowersToRemove.push(omegaIndex);
+                                createHealthOrb(omegaFollower.mesh.position);
                             }
                             hitSomething = true;
                         }
@@ -777,12 +1011,16 @@
                     scene.remove(superFollowers[index].mesh);
                     superFollowers.splice(index, 1);
                 });
+                
+                omegaFollowersToRemove.sort((a, b) => b - a).forEach(index => {
+                    scene.remove(omegaFollowers[index].mesh);
+                    omegaFollowers.splice(index, 1);
+                });
 
-                if (followers.length === 0 && superFollowers.length === 0) {
+                if (followers.length === 0 && superFollowers.length === 0 && omegaFollowers.length === 0 && !isWaveTransitioning) {
                     endWave();
                 }
 
-                // Check and combine followers if the threshold is met.
                 while (followers.length >= combinationThreshold) {
                     combineFollowers();
                 }
@@ -792,9 +1030,9 @@
                 const orbsToRemove = [];
                 healthOrbs.forEach((orb, index) => {
                     const dist = orb.position.distanceTo(player.position);
-                    if (dist < 1.5) { // Collision radius
-                        playerHealth = Math.min(100, playerHealth + healthOrbHealAmount);
-                        updateHealthBar(player.healthBar, playerHealth);
+                    if (dist < 1.5) {
+                        playerHealth = Math.min(playerMaxHealth, playerHealth + healthOrbHealAmount);
+                        updateHealthBar(player.healthBar, playerHealth, playerMaxHealth);
                         scene.remove(orb);
                         orbsToRemove.push(index);
                     }
@@ -805,16 +1043,38 @@
                 }
             }
 
+            function showBuffMenu() {
+                const shuffledBuffs = [...buffs].sort(() => 0.5 - Math.random());
+                const buffChoice1 = shuffledBuffs[0];
+                const buffChoice2 = shuffledBuffs[1];
+                
+                buffChoice1Button.querySelector('.buff-title').textContent = buffChoice1.name;
+                buffChoice1Button.querySelector('.buff-description').textContent = buffChoice1.description;
+                buffChoice1Button.buff = buffChoice1;
+                
+                buffChoice2Button.querySelector('.buff-title').textContent = buffChoice2.name;
+                buffChoice2Button.querySelector('.buff-description').textContent = buffChoice2.description;
+                buffChoice2Button.buff = buffChoice2;
+                
+                buffMenu.style.display = 'block';
+                isPaused = true;
+            }
+            
+            // Modified endWave function to despawn orbs
             function endWave() {
+                isWaveTransitioning = true;
                 waveCount++;
                 waveMessage.textContent = `Wave ${waveCount}`;
                 waveMessage.style.display = 'block';
+                document.exitPointerLock();
+                
+                // NEW: Despawn all remaining health orbs
+                healthOrbs.forEach(orb => scene.remove(orb));
+                healthOrbs = [];
 
-                isPaused = true;
                 setTimeout(() => {
-                    isPaused = false;
                     waveMessage.style.display = 'none';
-                    spawnNewWave(initialFollowerCount * Math.pow(2, waveCount - 1));
+                    showBuffMenu();
                 }, 2000);
             }
 
@@ -829,7 +1089,6 @@
                         spawnPosition.z = (Math.random() - 0.5) * worldRadius * 2;
                         spawnPosition.y = 1;
                         
-                        // Check distance to player
                         if (spawnPosition.distanceTo(player.position) > 10) {
                             isClose = false;
                         }
@@ -837,7 +1096,6 @@
                     }
 
                     if (isClose) {
-                        // If we can't find a good spot, just spawn far away.
                         const angle = Math.random() * Math.PI * 2;
                         spawnPosition.x = player.position.x + 50 * Math.cos(angle);
                         spawnPosition.z = player.position.z + 50 * Math.sin(angle);
@@ -852,14 +1110,13 @@
                     newFollowerMesh.castShadow = true;
                     scene.add(newFollowerMesh);
                     
-                    // Create and attach health bar
                     const followerHealthBar = createHealthBar(2, 0.2);
-                    followerHealthBar.position.y = 2; // Position above the follower's head
+                    followerHealthBar.position.y = 2;
                     newFollowerMesh.add(followerHealthBar);
                     
                     followers.push({
                         mesh: newFollowerMesh,
-                        health: 100,
+                        health: followerMaxHealth,
                         healthBar: followerHealthBar,
                         lastFireTime: 0
                     });
@@ -941,7 +1198,6 @@
                     onGround = true;
                 }
                 
-                // Check if player falls into the void
                 if (player.position.y < voidYLevel) {
                     endGame('lose');
                     return;
@@ -965,46 +1221,54 @@
                 }
                 
                 if (!isInsideAnyBush) {
-                    // Move normal followers
                     followers.forEach(follower => {
                         const targetPosition = new THREE.Vector3(player.position.x, follower.mesh.position.y, player.position.z);
                         follower.mesh.lookAt(targetPosition);
                         const direction = new THREE.Vector3();
                         direction.subVectors(targetPosition, follower.mesh.position).normalize();
                         follower.mesh.position.addScaledVector(direction, followerSpeed);
+
+                        // Every follower fires independently
+                        fireBlob(follower);
                     });
 
-                    // Move super followers
                     superFollowers.forEach(superFollower => {
                         const targetPosition = new THREE.Vector3(player.position.x, superFollower.mesh.position.y, player.position.z);
                         superFollower.mesh.lookAt(targetPosition);
                         const direction = new THREE.Vector3();
                         direction.subVectors(targetPosition, superFollower.mesh.position).normalize();
                         superFollower.mesh.position.addScaledVector(direction, superFollowerSpeed);
+
+                        // Every super follower fires independently
+                        fireSuperBlob(superFollower);
                     });
                     
-                    if (followers.length > 0) {
-                        fireBlob();
-                    }
-                    if (superFollowers.length > 0) {
-                        const superFollowerToFire = superFollowers[0];
-                        const distance = superFollowerToFire.mesh.position.distanceTo(player.position);
-                        if (distance < throwingRange * 1.5) {
-                            fireSuperBlob(superFollowerToFire);
-                        }
-                    }
+                    // NEW: Logic for the new enemy type
+                    omegaFollowers.forEach(omegaFollower => {
+                        const targetPosition = new THREE.Vector3(player.position.x, omegaFollower.mesh.position.y, player.position.z);
+                        omegaFollower.mesh.lookAt(targetPosition);
+                        const direction = new THREE.Vector3();
+                        direction.subVectors(targetPosition, omegaFollower.mesh.position).normalize();
+                        omegaFollower.mesh.position.addScaledVector(direction, omegaFollowerSpeed);
+                        
+                        fireOmegaBlob(omegaFollower);
+                    });
+                }
+                
+                // NEW: Check for super follower combination
+                if (superFollowers.length >= omegaFollowerThreshold) {
+                    combineSuperFollowers();
                 }
 
                 updateFollowerProjectiles();
                 updatePlayerProjectiles();
                 checkHealthOrbCollisions();
 
-                // Health bars should always face the camera
                 player.healthBar.lookAt(camera.position);
                 followers.forEach(f => f.healthBar.lookAt(camera.position));
                 superFollowers.forEach(f => f.healthBar.lookAt(camera.position));
+                omegaFollowers.forEach(f => f.healthBar.lookAt(camera.position)); // NEW: Update the new enemy's health bar
 
-                // Update the camera based on the current view mode
                 if (isFirstPersonView) {
                     camera.position.copy(player.position);
                     camera.position.y += 0.5;
@@ -1022,12 +1286,9 @@
                 renderer.render(scene, camera);
             }
             
-            // Initial setup
             init();
             animate();
         };
     </script>
 </body>
 </html>
-
-
