@@ -49,14 +49,28 @@
   font-weight: bold;
   color: #000000;
   z-index: 10;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+#z6dev:hover {
+  color: #1a73e8;
+  text-decoration: underline;
 }
     
   </style>
 </head>
 <body>
-<div id=z6dev>Z6dev</div>  
+<div id=z6dev>"Z6dev" onclick="onPClick()"</div>  
 <div id=inspired>inspired by:</div>
 <div id=intro>credits</div>
 <div id=page></div>
 </body>
+<script>
+
+  function onPClick() {
+     window.open("https://z6dev.github.io/", "_blank");
+  }
+  
+</script>
 </html>
