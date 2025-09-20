@@ -83,18 +83,24 @@ button1:hover {
  
 #credits {
   position: absolute;
-  right: 20px;              /* stick to right inside bar */
-  top: 1025px;              /* scroll to this position */
+  right: 20px;
+  top: 1025px;
   transform: translateY(-50%);
   font-size: 15px;
   font-weight: bold;
-  color: #ffffff;
+  color: #000000;
   z-index: 30;
-
-  /* GitHub-like coding text */
   font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
-  letter-spacing: 0.3px;   /* optional: make spacing like GitHub */
+  letter-spacing: 0.3px;
+  cursor: pointer; /* show hand cursor */
+  transition: color 0.2s ease; /* smooth color change */
 }
+
+#credits:hover {
+  color: #1a73e8; /* Google-style blue link */
+  text-decoration: underline; /* underline like a real link */
+}
+
     
     #thingAtTheBottom {
   position: absolute;
@@ -111,7 +117,7 @@ button1:hover {
 </head>
 <body>
 
-  <div id=credits>credits</div>
+  <div id="credits" onclick="window.location.href='credits.html'">credits</div>
   <div id=thingOnTop></div>
   <div id=thingAtTheBottom></div>
   <div id=hbul>ARE YOU BORED?</div>
