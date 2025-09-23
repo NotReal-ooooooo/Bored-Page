@@ -447,11 +447,11 @@
             // 2. Handle 8-ball pot
             const eightBallPotted = pottedOnTurn.find(b => b.number === 8);
             if (eightBallPotted) {
-                const playerBallsLeft = balls.filter(b => 
-                    b.inPlay && 
-                    ballTypeSet &&
-                    playerTypes[currentPlayer] === (b.number < 8 ? 'solids' : 'stripes')
-                ).length;
+                const playerBallsLeft = balls.filter(b => {
+                    if (!b.inPlay || b.number === 0 || b.number === 8) return false; // Exclude cue and 8-ball
+                    const ballType = b.number < 8 ? 'solids' : 'stripes';
+                    return playerTypes[currentPlayer] === ballType;
+                }).length;
                 
                 if (playerBallsLeft === 0 && !isFoul) {
                     gameOver(currentPlayer, `Player ${currentPlayer} legally potted the 8-ball!`);
@@ -815,11 +815,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
