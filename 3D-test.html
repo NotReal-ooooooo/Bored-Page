@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bored Page | 3D stuff</title>
+    <title>Plugging Honk</title>
     <style>
         /* General Body and Canvas Styles */
         body { 
@@ -191,10 +191,44 @@
             pointer-events: none;
             display: none;
         }
+
+        #rank-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    z-index: 150;
+    font-size: 14px;
+    user-select: none;
+}
+#rank-panel {
+    position: absolute;
+    top: 60px;
+    left: 20px;
+    background: rgba(0,0,0,0.85);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    display: none; /* hidden by default */
+    z-index: 150;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 14px;
+    min-width: 120px;
+}
+#rank-panel h3 { margin: 0 0 6px 0; font-size: 16px; text-align: center; }
+
+        
     </style>
 </head>
 <body>
-
+<div id="rank-button">Ranks</div>
+<div id="rank-panel"></div>
+    
      <audio id="shoot-sound" src="shooting-n-reload.mp3" preload="auto"></audio>
     
     <div id="info">Use WASD or Arrow Keys to Move and Turn the Player</div>
@@ -245,8 +279,73 @@
     <div id="wave-message"></div>
 
     <!-- Three.js library is loaded from a CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
+  <script type="module">
+import * as THREE from "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js";
+
+  const rankButton = document.getElementById("rank-button");
+const rankPanel = document.getElementById("rank-panel");
+
+async function fetchLeaderboard() {
+  const q = query(collection(db, "scores"), orderBy("kills", "desc"), limit(30));
+  const snap = await getDocs(q);
+  return snap.docs.map((doc, i) => `${i + 1}. ${doc.data().kills} kills`);
+}
+
+rankButton.addEventListener("click", async () => {
+  if (rankPanel.style.display === "block") {
+    rankPanel.style.display = "none";
+    return;
+  }
+  rankPanel.style.display = "block";
+  rankPanel.innerHTML = "<h3>Ranks</h3><div>Loading…</div>";
+
+  const list = await fetchLeaderboard();
+  rankPanel.innerHTML = "<h3>Ranks</h3>" + list.join("<br>");
+});
+
+      
+  // Import Firebase SDK
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, increment, updateDoc } 
+    from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } 
+    from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+  // 🔹 Paste your Firebase config from console here
+const firebaseConfig = {
+
+  apiKey: "AIzaSyDHwRWR9aP00Kj4uKQUD2aXymca0SuoDfc",
+  authDomain: "server-50ccc.firebaseapp.com",
+  projectId: "server-50ccc",
+  storageBucket: "server-50ccc.firebasestorage.app",
+  messagingSenderId: "210801120477",
+  appId: "1:210801120477:web:ce071117ecd2ba3704f734",
+  measurementId: "G-9ZN3S2VCKE"
+
+};
+
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // Sign in anonymously
+  let currentUser = null;
+  signInAnonymously(auth);
+  onAuthStateChanged(auth, user => {
+    currentUser = user;
+    console.log("Signed in as", user.uid);
+  });
+
+        async function reportKill() {
+  if (!currentUser) return;
+  const ref = doc(db, "scores", currentUser.uid);
+  await updateDoc(ref, { kills: increment(1) }).catch(async () => {
+    // if doc doesn’t exist yet, create it
+    await setDoc(ref, { kills: 1 });
+  });
+}
+        
         window.onload = function() {
             // --- Global Variables ---
             let scene, camera, renderer;
@@ -954,6 +1053,7 @@
                             if (follower.health <= 0) {
                                 followersToRemove.push(followerIndex);
                                 createHealthOrb(follower.mesh.position);
+                                reportKill();
                             }
                             hitSomething = true;
                         }
@@ -968,6 +1068,7 @@
                             if (superFollower.health <= 0) {
                                 superFollowersToRemove.push(superIndex);
                                 createHealthOrb(superFollower.mesh.position);
+                                reportKill();
                             }
                             hitSomething = true;
                         }
@@ -982,6 +1083,7 @@
                             if (omegaFollower.health <= 0) {
                                 omegaFollowersToRemove.push(omegaIndex);
                                 createHealthOrb(omegaFollower.mesh.position);
+                                reportKill();
                             }
                             hitSomething = true;
                         }
