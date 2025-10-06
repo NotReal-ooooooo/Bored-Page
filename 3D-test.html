@@ -337,14 +337,30 @@ const firebaseConfig = {
     console.log("Signed in as", user.uid);
   });
 
-        async function reportKill() {
-  if (!currentUser) return;
-  const ref = doc(db, "scores", currentUser.uid);
-  await updateDoc(ref, { kills: increment(1) }).catch(async () => {
-    // if doc doesn’t exist yet, create it
-    await setDoc(ref, { kills: 1 });
-  });
+let localKills = 0; // track kills this run
+
+function addKill() {
+  localKills++;
 }
+
+// Call this when game ends
+async function saveHighScore() {
+  if (!currentUser) return;
+
+  const ref = doc(db, "scores", currentUser.uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    // first time playing
+    await setDoc(ref, { kills: localKills });
+  } else {
+    const oldScore = snap.data().kills || 0;
+    if (localKills > oldScore) {
+      await updateDoc(ref, { kills: localKills });
+    }
+  }
+}
+
         
         window.onload = function() {
             // --- Global Variables ---
@@ -449,6 +465,7 @@ const firebaseConfig = {
             
             // --- Setup Functions ---
             function init() {
+                localKills = 0;
                 // Scene setup
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0x87ceeb);
@@ -1053,7 +1070,7 @@ const firebaseConfig = {
                             if (follower.health <= 0) {
                                 followersToRemove.push(followerIndex);
                                 createHealthOrb(follower.mesh.position);
-                                reportKill();
+                                addKill();
                             }
                             hitSomething = true;
                         }
@@ -1068,7 +1085,7 @@ const firebaseConfig = {
                             if (superFollower.health <= 0) {
                                 superFollowersToRemove.push(superIndex);
                                 createHealthOrb(superFollower.mesh.position);
-                                reportKill();
+                                addKill();
                             }
                             hitSomething = true;
                         }
@@ -1083,7 +1100,7 @@ const firebaseConfig = {
                             if (omegaFollower.health <= 0) {
                                 omegaFollowersToRemove.push(omegaIndex);
                                 createHealthOrb(omegaFollower.mesh.position);
-                                reportKill();
+                                addKill();
                             }
                             hitSomething = true;
                         }
@@ -1233,6 +1250,8 @@ const firebaseConfig = {
                     gameMessage.textContent = 'Game Over';
                 }
                 gameMessage.style.display = 'block';
+
+                  saveHighScore();
             }
 
             // --- Main Game Loop ---
@@ -1394,3 +1413,4 @@ const firebaseConfig = {
     </script>
 </body>
 </html>
+
