@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Firebase Multiplayer Cube Test</title>
+  <style>
+    body { margin:0; background:#111; color:#eee; font-family:monospace; }
+    canvas { display:block; background:#222; margin: 10px auto; border: 1px solid #333; }
+    #info { padding:10px; text-align:center; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div id="info">Open this page in multiple tabs to test multiplayer (Realtime DB)</div>
+  <canvas id="game" width="900" height="600"></canvas>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import {
+  getDatabase, ref, push, set,
+  onChildAdded, onChildChanged, onChildRemoved,
+  onDisconnect, remove, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyDHwRWR9aP00Kj4uKQUD2aXymca0SuoDfc",
+  authDomain: "server-50ccc.firebaseapp.com",
+  databaseURL: "https://server-50ccc-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "server-50ccc",
+  storageBucket: "server-50ccc.firebasestorage.app",
+  messagingSenderId: "210801120477",
+  appId: "1:210801120477:web:48cad3a56e87b4c804f734",
+  measurementId: "G-XG0CX1CV79"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const playersRef = ref(db, "players");
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let players = {};
+let myRef = null;
+let myId = null;
+
+// ===== CREATE PLAYER =====
+function createPlayer() {
+  myRef = push(playersRef);
+  myId = myRef.key;
+  onDisconnect(myRef).remove();
+
+  const start = {
+    x: Math.random() * (canvas.width - 40),
+    y: Math.random() * (canvas.height - 40),
+    color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+    lastSeen: serverTimestamp()
+  };
+
+  set(myRef, start);
+  players[myId] = { ...start, prevX: start.x, prevY: start.y, targetX: start.x, targetY: start.y, lastUpdate: performance.now() };
+}
+createPlayer();
+
+window.addEventListener("beforeunload", () => {
+  if (myRef) remove(myRef);
+});
+
+// ===== LISTENERS =====
+onChildAdded(playersRef, (snap) => {
+  const d = snap.val();
+  players[snap.key] = {
+    ...d,
+    prevX: d.x,
+    prevY: d.y,
+    targetX: d.x,
+    targetY: d.y,
+    lastUpdate: performance.now()
+  };
+});
+
+onChildChanged(playersRef, (snap) => {
+  const d = snap.val();
+  if (!players[snap.key]) return;
+  const p = players[snap.key];
+  p.prevX = p.targetX;
+  p.prevY = p.targetY;
+  p.targetX = d.x;
+  p.targetY = d.y;
+  p.color = d.color;
+  p.lastUpdate = performance.now();
+});
+
+onChildRemoved(playersRef, (snap) => delete players[snap.key]);
+
+// ===== INPUT =====
+const keys = {};
+window.addEventListener("keydown", e => keys[e.key] = true);
+window.addEventListener("keyup", e => keys[e.key] = false);
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+const speed = 5;
+const SEND_INTERVAL = 100;
+let lastSent = 0;
+
+// ===== UPDATE =====
+function update() {
+  const me = players[myId];
+  if (!me) return;
+
+  let x = me.targetX;
+  let y = me.targetY;
+
+  if (keys["ArrowUp"] || keys["w"]) y -= speed;
+  if (keys["ArrowDown"] || keys["s"]) y += speed;
+  if (keys["ArrowLeft"] || keys["a"]) x -= speed;
+  if (keys["ArrowRight"] || keys["d"]) x += speed;
+
+  x = clamp(x, 0, canvas.width - 40);
+  y = clamp(y, 0, canvas.height - 40);
+
+  // Predict locally
+  me.prevX = me.targetX;
+  me.prevY = me.targetY;
+  me.targetX = x;
+  me.targetY = y;
+  me.lastUpdate = performance.now();
+
+  // Send update less often
+  const now = performance.now();
+  if (now - lastSent > SEND_INTERVAL) {
+    lastSent = now;
+    set(myRef, { x, y, color: me.color, lastSeen: serverTimestamp() });
+  }
+}
+
+// ===== RENDER =====
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const now = performance.now();
+
+  for (const id in players) {
+    const p = players[id];
+    if (!p) continue;
+
+    const t = Math.min((now - p.lastUpdate) / 100, 1);
+    const x = p.prevX + (p.targetX - p.prevX) * t;
+    const y = p.prevY + (p.targetY - p.prevY) * t;
+
+    ctx.fillStyle = p.color;
+    ctx.fillRect(x, y, 40, 40);
+
+    if (id === myId) {
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, 40, 40);
+    }
+  }
+}
+
+// ===== LOOP =====
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+loop();
+
+</script>
