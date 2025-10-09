@@ -12,6 +12,7 @@
       font-family: monospace;
       display: flex;
       height: 100vh;
+      overflow: hidden;
     }
     #game {
       background: #222;
@@ -29,6 +30,7 @@
       background: #1a1a1a;
       border-left: 1px solid #333;
       width: 220px;
+      user-select: none;
     }
     #chatInput, #colorPicker {
       padding: 5px;
@@ -177,6 +179,11 @@ onChildRemoved(playersRef, (snap) => delete players[snap.key]);
 // ===== MOVEMENT =====
 const keys = {};
 window.addEventListener("keydown", e => {
+  // prevent arrow navigation on buttons
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) {
+    const tag = document.activeElement.tagName.toLowerCase();
+    if (tag !== "input" && tag !== "textarea") e.preventDefault();
+  }
   keys[e.key] = true;
   handleMovementLock();
 });
@@ -185,24 +192,24 @@ window.addEventListener("keyup", e => {
   handleMovementLock();
 });
 
-// Disable UI while moving
+// Disable sidebar while moving
 function handleMovementLock() {
   const moving =
     keys["ArrowUp"] || keys["ArrowDown"] ||
     keys["ArrowLeft"] || keys["ArrowRight"] ||
     keys["w"] || keys["a"] || keys["s"] || keys["d"];
-
   sidebar.style.pointerEvents = moving ? "none" : "auto";
 }
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
-const speed = 5;
+const speed = 6; // restored faster speed
 const SEND_INTERVAL = 100;
 let lastSent = 0;
 
 function updatePlayer() {
   if (!spawned || !players[myId]) return;
+  if (document.activeElement === chatInput) return; // no movement while chatting
 
   const me = players[myId];
   let x = me.targetX, y = me.targetY;
@@ -291,3 +298,4 @@ loop();
 </script>
 </body>
 </html>
+
