@@ -2,55 +2,67 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Bored Page | Multi-player</title>
-<style>
-body {
-  margin: 0;
-  background: #111;
-  color: #eee;
-  font-family: monospace;
-  display: flex; /* make a flex container for canvas + chat */
-  height: 100vh;
-}
-#game {
-  background: #222;
-  border: 1px solid #333;
-  margin: auto;
-}
-#chatSidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 10px;
-  background: #222;
-  border-left: 1px solid #333;
-  width: 220px;
-}
-#chatInput {
-  padding: 5px;
-  background: #111;
-  color: #eee;
-  border: 1px solid #333;
-  width: 100%;
-}
-#sendBtn {
-  padding: 5px;
-  background: #333;
-  color: #eee;
-  border: none;
-  cursor: pointer;
-}
-#sendBtn:hover { background: #444; }
-</style>
-
+  <title>Virtual Chat | Bored Page</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: #eee;
+      font-family: monospace;
+      display: flex;
+      height: 100vh;
+    }
+    #game {
+      background: #222;
+      border: 1px solid #333;
+      margin: auto;
+      display: block;
+    }
+    #sidebar {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #1a1a1a;
+      border-left: 1px solid #333;
+      width: 220px;
+    }
+    #chatInput, #colorPicker {
+      padding: 5px;
+      background: #222;
+      color: #eee;
+      border: 1px solid #333;
+      width: 100%;
+    }
+    #sendBtn, #spawnBtn {
+      padding: 5px;
+      background: #333;
+      color: #eee;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+    #sendBtn:hover, #spawnBtn:hover { background: #444; }
+    #info {
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 5px;
+      color: #aaa;
+    }
+  </style>
+</head>
 <body>
   <canvas id="game" width="900" height="600"></canvas>
-  <div id="chatSidebar">
+  <div id="sidebar">
+    <div id="info">🎮 Pick your color then spawn!</div>
+    <input type="color" id="colorPicker" value="#00ffff">
+    <button id="spawnBtn">Spawn Player</button>
+    <hr style="width:100%; border-color:#333;">
     <input id="chatInput" type="text" placeholder="Type message..." maxlength="40">
     <button id="sendBtn">Send</button>
   </div>
-</body>
-
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
@@ -76,17 +88,33 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const playersRef = ref(db, "players");
 
-// ===== CANVAS =====
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ===== LOCAL STATE =====
 let players = {};
 let myRef = null;
 let myId = null;
+let chosenColor = "#00ffff";
+let spawned = false;
+
+// ====== UI ELEMENTS ======
+const colorPicker = document.getElementById("colorPicker");
+const spawnBtn = document.getElementById("spawnBtn");
+const chatInput = document.getElementById("chatInput");
+const sendBtn = document.getElementById("sendBtn");
+const sidebar = document.getElementById("sidebar");
+
+colorPicker.oninput = () => chosenColor = colorPicker.value;
+spawnBtn.onclick = () => {
+  if (!spawned) {
+    createPlayer(chosenColor);
+    spawnBtn.disabled = true;
+    spawned = true;
+  }
+};
 
 // ===== CREATE PLAYER =====
-function createPlayer() {
+function createPlayer(color) {
   myRef = push(playersRef);
   myId = myRef.key;
   onDisconnect(myRef).remove();
@@ -94,13 +122,12 @@ function createPlayer() {
   const start = {
     x: Math.random() * (canvas.width - 40),
     y: Math.random() * (canvas.height - 40),
-    color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+    color: color,
     chat: "",
     chatStart: 0,
     lastSeen: serverTimestamp()
   };
 
-  // initialize interpolation properties
   players[myId] = {
     ...start,
     prevX: start.x,
@@ -112,7 +139,6 @@ function createPlayer() {
 
   update(myRef, start);
 }
-createPlayer();
 
 window.addEventListener("beforeunload", () => {
   if (myRef) update(myRef, { lastSeen: serverTimestamp() });
@@ -135,8 +161,6 @@ onChildChanged(playersRef, (snap) => {
   const d = snap.val();
   const p = players[snap.key];
   if (!p) return;
-
-  // smooth interpolation
   p.prevX = p.targetX;
   p.prevY = p.targetY;
   p.targetX = d.x;
@@ -147,14 +171,28 @@ onChildChanged(playersRef, (snap) => {
   p.lastUpdate = performance.now();
 });
 
-onChildRemoved(playersRef, (snap) => {
-  delete players[snap.key];
+onChildRemoved(playersRef, (snap) => delete players[snap.key]);
+
+// ===== MOVEMENT =====
+const keys = {};
+window.addEventListener("keydown", e => {
+  keys[e.key] = true;
+  handleMovementLock();
+});
+window.addEventListener("keyup", e => {
+  keys[e.key] = false;
+  handleMovementLock();
 });
 
-// ===== INPUT =====
-const keys = {};
-window.addEventListener("keydown", e => keys[e.key] = true);
-window.addEventListener("keyup", e => keys[e.key] = false);
+// Disable UI while moving
+function handleMovementLock() {
+  const moving =
+    keys["ArrowUp"] || keys["ArrowDown"] ||
+    keys["ArrowLeft"] || keys["ArrowRight"] ||
+    keys["w"] || keys["a"] || keys["s"] || keys["d"];
+
+  sidebar.style.pointerEvents = moving ? "none" : "auto";
+}
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
@@ -162,13 +200,11 @@ const speed = 5;
 const SEND_INTERVAL = 100;
 let lastSent = 0;
 
-// ===== UPDATE PLAYER =====
 function updatePlayer() {
-  const me = players[myId];
-  if (!me) return;
+  if (!spawned || !players[myId]) return;
 
-  let x = me.targetX;
-  let y = me.targetY;
+  const me = players[myId];
+  let x = me.targetX, y = me.targetY;
 
   if (keys["ArrowUp"] || keys["w"]) y -= speed;
   if (keys["ArrowDown"] || keys["s"]) y += speed;
@@ -178,7 +214,6 @@ function updatePlayer() {
   x = clamp(x, 0, canvas.width - 40);
   y = clamp(y, 0, canvas.height - 40);
 
-  // update local interpolation
   me.prevX = me.targetX;
   me.prevY = me.targetY;
   me.targetX = x;
@@ -192,13 +227,10 @@ function updatePlayer() {
   }
 }
 
-// ===== CHAT HANDLING =====
-const chatInput = document.getElementById("chatInput");
-const sendBtn = document.getElementById("sendBtn");
-
+// ===== CHAT =====
 sendBtn.onclick = () => {
   const text = chatInput.value.trim();
-  if (!text) return;
+  if (!text || !spawned) return;
   chatInput.value = "";
 
   const me = players[myId];
@@ -215,19 +247,16 @@ sendBtn.onclick = () => {
 // ===== RENDER =====
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   const now = performance.now();
 
   for (const id in players) {
     const p = players[id];
     if (!p) continue;
 
-    // smooth interpolation
     const t = Math.min((now - p.lastUpdate) / 100, 1);
     const drawX = p.prevX + (p.targetX - p.prevX) * t;
     const drawY = p.prevY + (p.targetY - p.prevY) * t;
 
-    // draw player
     ctx.fillStyle = p.color;
     ctx.fillRect(drawX, drawY, 40, 40);
 
@@ -237,7 +266,6 @@ function render() {
       ctx.strokeRect(drawX, drawY, 40, 40);
     }
 
-    // draw chat
     if (p.chat) {
       const elapsed = Date.now() - (p.chatStart || 0);
       let alpha = 1;
@@ -252,16 +280,15 @@ function render() {
   }
 }
 
-// ===== MAIN LOOP =====
+// ===== LOOP =====
 function loop() {
   updatePlayer();
   render();
   requestAnimationFrame(loop);
 }
-
 loop();
 </script>
-
 </body>
 </html>
+
 
