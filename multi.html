@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Virtual Chat | Bored Page</title>
+  <link rel="icon" type="image/png" href="canvas.png">
   <style>
     body {
       margin: 0;
@@ -11,6 +12,7 @@
       font-family: monospace;
       display: flex;
       height: 100vh;
+      overflow: hidden;
     }
     #game {
       background: #222;
@@ -28,15 +30,16 @@
       background: #1a1a1a;
       border-left: 1px solid #333;
       width: 220px;
+      user-select: none;
     }
-    #chatInput, #colorPicker {
+    #chatInput, #colorPicker, #nameInput {
       padding: 5px;
       background: #222;
       color: #eee;
       border: 1px solid #333;
       width: 100%;
     }
-    #sendBtn, #spawnBtn {
+    #sendBtn, #spawnBtn, #changeNameBtn {
       padding: 5px;
       background: #333;
       color: #eee;
@@ -44,7 +47,7 @@
       cursor: pointer;
       width: 100%;
     }
-    #sendBtn:hover, #spawnBtn:hover { background: #444; }
+    #sendBtn:hover, #spawnBtn:hover, #changeNameBtn:hover { background: #444; }
     #info {
       font-size: 13px;
       text-align: center;
@@ -56,10 +59,12 @@
 <body>
   <canvas id="game" width="900" height="600"></canvas>
   <div id="sidebar">
-    <div id="info">🎮 Pick your color then spawn!</div>
+    <div id="info">🎮 Choose your name & color, then spawn!</div>
+    <input id="nameInput" type="text" placeholder="Enter your name..." maxlength="20">
     <input type="color" id="colorPicker" value="#00ffff">
     <button id="spawnBtn">Spawn Player</button>
     <hr style="width:100%; border-color:#333;">
+    <button id="changeNameBtn">Change Username</button>
     <input id="chatInput" type="text" placeholder="Type message..." maxlength="40">
     <button id="sendBtn">Send</button>
   </div>
@@ -67,10 +72,10 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import {
-  getDatabase, ref, push, update,
-  onChildAdded, onChildChanged, onChildRemoved,
-  onDisconnect, serverTimestamp
+  getDatabase, ref, push, set, update, get,
+  onChildAdded, onChildChanged, onChildRemoved, onDisconnect, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
@@ -78,7 +83,7 @@ const firebaseConfig = {
   authDomain: "server-50ccc.firebaseapp.com",
   databaseURL: "https://server-50ccc-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "server-50ccc",
-  storageBucket: "server-50ccc.firebasestorage.app",
+  storageBucket: "server-50ccc.appspot.com",
   messagingSenderId: "210801120477",
   appId: "1:210801120477:web:48cad3a56e87b4c804f734",
   measurementId: "G-XG0CX1CV79"
@@ -86,6 +91,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth();
 const playersRef = ref(db, "players");
 
 const canvas = document.getElementById("game");
@@ -94,27 +100,97 @@ const ctx = canvas.getContext("2d");
 let players = {};
 let myRef = null;
 let myId = null;
-let chosenColor = "#00ffff";
+let username = localStorage.getItem("username") || null;
+let chosenColor = localStorage.getItem("color") || "#00ffff";
 let spawned = false;
 
-// ====== UI ELEMENTS ======
+// ===== UI =====
 const colorPicker = document.getElementById("colorPicker");
 const spawnBtn = document.getElementById("spawnBtn");
 const chatInput = document.getElementById("chatInput");
 const sendBtn = document.getElementById("sendBtn");
 const sidebar = document.getElementById("sidebar");
+const changeNameBtn = document.getElementById("changeNameBtn");
 
-colorPicker.oninput = () => chosenColor = colorPicker.value;
-spawnBtn.onclick = () => {
-  if (!spawned) {
-    createPlayer(chosenColor);
-    spawnBtn.disabled = true;
-    spawned = true;
+colorPicker.value = chosenColor;
+colorPicker.oninput = () => {
+  chosenColor = colorPicker.value;
+  localStorage.setItem("color", chosenColor);
+};
+
+// ===== SIGN-IN =====
+signInAnonymously(auth).then(() => {
+  console.log("Signed in anonymously!");
+}).catch(console.error);
+
+// ===== USERNAME SYSTEM =====
+async function askUsername() {
+  let confirmed = false;
+  while (!confirmed) {
+    const nameInput = prompt("Enter your username:");
+    if (!nameInput) return alert("Username required!");
+
+    const snapshot = await get(playersRef);
+    let nameUsed = false;
+    snapshot.forEach((child) => {
+      const val = child.val();
+      if (val.name?.toLowerCase() === nameInput.toLowerCase()) nameUsed = true;
+    });
+
+    if (nameUsed) {
+      alert("That username is already taken by an active player. Try another!");
+      continue;
+    }
+
+    const sure = confirm(`Are you sure?\n"${nameInput}" will be permanent for this device.`);
+    if (sure) {
+      username = nameInput;
+      localStorage.setItem("username", username);
+      alert(`✅ Username set to "${username}"`);
+      confirmed = true;
+    }
   }
+}
+
+changeNameBtn.onclick = async () => {
+  if (!username) return alert("No username saved yet!");
+
+  const confirmReset = confirm(
+    `Your current username is "${username}".\nDo you want to change it?`
+  );
+  if (!confirmReset) return;
+
+  let confirmed = false;
+  while (!confirmed) {
+    const nameInput = prompt("Enter your new username:");
+    if (!nameInput) return alert("Username required!");
+
+    const snapshot = await get(playersRef);
+    let nameUsed = false;
+    snapshot.forEach((child) => {
+      const val = child.val();
+      if (val.name?.toLowerCase() === nameInput.toLowerCase()) nameUsed = true;
+    });
+
+    if (nameUsed) {
+      alert("That username is already taken by another player!");
+      continue;
+    }
+
+    const sure = confirm(`Are you sure?\n"${nameInput}" will be permanent for this device.`);
+    if (sure) {
+      username = nameInput;
+      localStorage.setItem("username", username);
+      alert(`✅ Username changed to "${username}"`);
+      confirmed = true;
+    }
+  }
+
+  if (spawned && myRef) update(myRef, { name: username });
 };
 
 // ===== CREATE PLAYER =====
-function createPlayer(color) {
+function createPlayer(color, name) {
   myRef = push(playersRef);
   myId = myRef.key;
   onDisconnect(myRef).remove();
@@ -123,55 +199,24 @@ function createPlayer(color) {
     x: Math.random() * (canvas.width - 40),
     y: Math.random() * (canvas.height - 40),
     color: color,
+    name: name,
     chat: "",
     chatStart: 0,
     lastSeen: serverTimestamp()
   };
 
-  players[myId] = {
-    ...start,
-    prevX: start.x,
-    prevY: start.y,
-    targetX: start.x,
-    targetY: start.y,
-    lastUpdate: performance.now()
-  };
-
-  update(myRef, start);
+  players[myId] = { ...start };
+  set(myRef, start);
 }
 
-window.addEventListener("beforeunload", () => {
-  if (myRef) update(myRef, { lastSeen: serverTimestamp() });
-});
-
-// ===== LISTENERS =====
-onChildAdded(playersRef, (snap) => {
-  const d = snap.val();
-  players[snap.key] = {
-    ...d,
-    prevX: d.x,
-    prevY: d.y,
-    targetX: d.x,
-    targetY: d.y,
-    lastUpdate: performance.now()
-  };
-});
-
-onChildChanged(playersRef, (snap) => {
-  const d = snap.val();
-  const p = players[snap.key];
-  if (!p) return;
-  p.prevX = p.targetX;
-  p.prevY = p.targetY;
-  p.targetX = d.x;
-  p.targetY = d.y;
-  p.color = d.color;
-  p.chat = d.chat || "";
-  p.chatStart = d.chatStart || 0;
-  p.lastUpdate = performance.now();
-});
-
-onChildRemoved(playersRef, (snap) => delete players[snap.key]);
+// ===== SPAWN BUTTON =====
+spawnBtn.onclick = async () => {
+  if (spawned) return;
+  if (!username) await askUsername();
+  createPlayer(chosenColor, username);
+  spawned = true;
+  spawnBtn.disabled = true;
+};
 
 // ===== MOVEMENT =====
 const keys = {};
@@ -184,27 +229,21 @@ window.addEventListener("keyup", e => {
   handleMovementLock();
 });
 
-// Disable UI while moving
 function handleMovementLock() {
-  const moving =
-    keys["ArrowUp"] || keys["ArrowDown"] ||
-    keys["ArrowLeft"] || keys["ArrowRight"] ||
-    keys["w"] || keys["a"] || keys["s"] || keys["d"];
-
+  const moving = ["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","a","s","d"].some(k => keys[k]);
   sidebar.style.pointerEvents = moving ? "none" : "auto";
 }
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
-const speed = 5;
+const speed = 6;
 const SEND_INTERVAL = 100;
 let lastSent = 0;
 
 function updatePlayer() {
   if (!spawned || !players[myId]) return;
-
   const me = players[myId];
-  let x = me.targetX, y = me.targetY;
+  let { x, y } = me;
 
   if (keys["ArrowUp"] || keys["w"]) y -= speed;
   if (keys["ArrowDown"] || keys["s"]) y += speed;
@@ -214,16 +253,13 @@ function updatePlayer() {
   x = clamp(x, 0, canvas.width - 40);
   y = clamp(y, 0, canvas.height - 40);
 
-  me.prevX = me.targetX;
-  me.prevY = me.targetY;
-  me.targetX = x;
-  me.targetY = y;
-  me.lastUpdate = performance.now();
+  me.x = x;
+  me.y = y;
 
   const now = performance.now();
   if (now - lastSent > SEND_INTERVAL) {
     lastSent = now;
-    update(myRef, { x, y, color: me.color, lastSeen: serverTimestamp() });
+    update(myRef, { x, y, color: me.color, name: me.name, lastSeen: serverTimestamp() });
   }
 }
 
@@ -232,40 +268,34 @@ sendBtn.onclick = () => {
   const text = chatInput.value.trim();
   if (!text || !spawned) return;
   chatInput.value = "";
-
-  const me = players[myId];
-  if (!me) return;
-
   const now = Date.now();
   update(myRef, { chat: text, chatStart: now });
-
-  setTimeout(() => {
-    update(myRef, { chat: "", chatStart: 0 });
-  }, 3000);
+  setTimeout(() => update(myRef, { chat: "", chatStart: 0 }), 3000);
 };
+
+// ===== DATABASE LISTENERS =====
+onChildAdded(playersRef, snap => players[snap.key] = snap.val());
+onChildChanged(playersRef, snap => players[snap.key] = snap.val());
+onChildRemoved(playersRef, snap => delete players[snap.key]);
 
 // ===== RENDER =====
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const now = performance.now();
-
   for (const id in players) {
     const p = players[id];
-    if (!p) continue;
-
-    const t = Math.min((now - p.lastUpdate) / 100, 1);
-    const drawX = p.prevX + (p.targetX - p.prevX) * t;
-    const drawY = p.prevY + (p.targetY - p.prevY) * t;
-
     ctx.fillStyle = p.color;
-    ctx.fillRect(drawX, drawY, 40, 40);
-
+    ctx.fillRect(p.x, p.y, 40, 40);
     if (id === myId) {
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 2;
-      ctx.strokeRect(drawX, drawY, 40, 40);
+      ctx.strokeRect(p.x, p.y, 40, 40);
     }
-
+    if (p.name) {
+      ctx.fillStyle = "#ccc";
+      ctx.font = "13px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(p.name, p.x + 20, p.y - 25);
+    }
     if (p.chat) {
       const elapsed = Date.now() - (p.chatStart || 0);
       let alpha = 1;
@@ -274,13 +304,13 @@ function render() {
       ctx.fillStyle = "#fff";
       ctx.font = "14px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(p.chat, drawX + 20, drawY - 10 - (elapsed / 50));
+      ctx.fillText(p.chat, p.x + 20, p.y - 10 - (elapsed / 50));
       ctx.globalAlpha = 1;
     }
   }
 }
 
-// ===== LOOP =====
+// ===== GAME LOOP =====
 function loop() {
   updatePlayer();
   render();
@@ -290,5 +320,3 @@ loop();
 </script>
 </body>
 </html>
-
-
