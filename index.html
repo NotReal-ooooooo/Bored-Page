@@ -12,10 +12,10 @@
       font-family: Arial, sans-serif;
     }
     
-    button1 {
+
+button, button1, button2 {
   position: absolute;
   top: 800px;
-  left: 40px;
   background-color: #4CAF50;
   color: white;
   padding: 12px 24px;      
@@ -25,34 +25,20 @@
   font-size: 16px;
   transition: transform 0.3s ease, background-color 0.3s ease;
 }
-   
-    button {
-  position: absolute;
-  top: 800px;
-  left: 250px;
-  background-color: #4CAF50;
-  color: white;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: transform 0.3s ease, background-color 0.3s ease;
+    
+    
+button1 {
+  left: 40px;
 }
 
-  button2 {
-  position: absolute;
-  top: 800px;
+button {
+  left: 250px;
+}
+
+button2 {
   left: 460px;
-  background-color: #4CAF50;
-  color: white;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: transform 0.3s ease, background-color 0.3s ease;
-  }
+}
+
     
  #thingOnTop {
       position: fixed;   /* stays in place when scrolling */
@@ -65,20 +51,13 @@
       z-index: 20;     
  }
     
-button:hover {
-  transform: scale(1.2);
-  background-color: #388E3C; /* darker green on hover */
-}
-    
-button1:hover {
-  transform: scale(1.2);
-  background-color: #388E3C; /* darker green on hover */
-}
-
+button:hover,
+button1:hover,
 button2:hover {
   transform: scale(1.2);
-  background-color: #388E3C; /* darker green on hover */
+  background-color: #388E3C;
 }
+
     
 .borderline1 {
   position: absolute;
@@ -163,15 +142,6 @@ button2:hover {
   z-index: 10;
 }
 
-#text {
-  position: absolute;
-  top: 180px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 30px;
-  font-weight: bold;
-  color: #ffffff;
-}
 
     
   </style>
@@ -179,7 +149,6 @@ button2:hover {
 <body>
   <div id=pasgues></div>
   <div class=borderline1></div>
-  <div id=text>puzzle</div>
   <div id="credits" onclick="window.location.href='credits.html'">credits</div>
   <div id=thingOnTop></div>
   <div id=thingAtTheBottom></div>
