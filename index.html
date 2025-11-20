@@ -173,6 +173,14 @@ button2:hover {
   color: #ffffff;
 }
 
+.boredPagePaint {
+      position: fixed;    /* fixed relative to viewport */
+      top: 0;              /* distance from top */
+      right: 0;            /* distance from right */
+      width: 150px;        /* size of the image, you can change */
+      height: auto;
+      z-index: 999;     
+}
     
   </style>
 </head>
@@ -185,6 +193,8 @@ button2:hover {
   <div id=thingAtTheBottom></div>
   <div id=hbul>ARE YOU BORED?</div>
   <div id=nbul>Why not TRY This Page's Stuff or Stuff(s)!</div>
+  <img class="boredPagePaint" src="profile.png" alt="Corner Image">
+  
   
   <button onclick="window.location.href='3D-test.html'">
     Go to 3D Page
