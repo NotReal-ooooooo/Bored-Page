@@ -15,7 +15,6 @@
 
   button {
       position: absolute;
-      top: 400px;
       background-color: #1e1e1e;
       color: white;
       border: 2px solid black;    /* smaller black outline */
@@ -32,11 +31,10 @@
     }
 
     /* Button positions */
-    .btnMain { left: 250px; }
-    .btn1 { left: 40px; }
-    .btn2 { left: 460px; }
-
-
+    .btnMain { left: 250px; top:400px; }
+    .btn1 { left: 40px; top:400px; }
+    .btn2 { left: 460px; top:400px; }
+    .btnMore { left: 40px; top: 600px; }
     
  #thingOnTop {
       position: fixed;   /* stays in place when scrolling */
@@ -162,6 +160,9 @@
     <img src="thing.png" style="width:170px;height:102px;">
   </button>
 
+  <button class="btnMore" onclick="window.location.herf='Morestuff.html'">
+    <img src="more.png" style="width:170px;height:102px;">>
+  </button>
 
 </body>
 </html>
