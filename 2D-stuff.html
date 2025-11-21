@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>2D SHENANIGAN | Bored Page</tittle>
+  <title>2D SHENANIGAN | Bored Page</title>
   <style>
     body { margin: 0; padding: 0; overflow: hidden; }
     canvas { background-color: #87CEEB; display: block; cursor: crosshair; }
@@ -21,22 +21,21 @@
   const gravity = 0.5;
   const jumpPower = -8;
   const breakTime = 20;
-  const shootDelay = 0.00000000000000000000000000000000000000000000000001;
+  const shootDelay = 5; // fixed
   const playerImg = new Image();
-  
+  playerImg.src = "pish.png";
+
   let velocityY = 0;
   let isOnGround = false;
   let keysPressed = { left: false, right: false };
   let mouseX = 0, mouseY = 0;
-  let isBreaking = false;
   let breakTimer = 0;
   let isMouseDown = false;
   let isShooting = false;
   let shootCooldown = 0;
-
-    
-  playerImg.src = 'pish.png';
-  let playerDirection = 'right';
+  let deathCount = 0;
+  let respawnTimer = 0;
+  let superEnemyCount = 0;
 
   const player = {
     x: 100,
@@ -49,6 +48,9 @@
 
   const bullets = [];
   const explosions = [];
+  const placedBlocks = [];
+  
+  let platformBlock = { x:0, y:0, width:tileSize, height:tileSize, broken:false };
 
   const enemies = [
     {
@@ -65,11 +67,6 @@
     }
   ];
 
-  let respawnTimer = 0;
-  let deathCount = 0;
-  const placedBlocks = [];
-  let platformBlock;
-
   function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -78,27 +75,40 @@
 
   function generateGround() {
     const groundY = canvas.height - tileSize;
-    platformBlock = { x: Math.floor(canvas.width / 2 / tileSize) * tileSize, y: groundY - tileSize, width: tileSize, height: tileSize, broken: false };
+    platformBlock = { 
+      x: Math.floor(canvas.width / 2 / tileSize) * tileSize, 
+      y: groundY - tileSize, 
+      width: tileSize, 
+      height: tileSize, 
+      broken: false 
+    };
   }
 
   function drawHealthBar(entity) {
     const barWidth = entity.width;
     const barHeight = 5;
-    const healthPercent = entity.health / 100;
-    ctx.fillStyle = 'black';
+    const hp = entity.health / 100;
+
+    ctx.fillStyle = "black";
     ctx.fillRect(entity.x, entity.y - 10, barWidth, barHeight);
-    ctx.fillStyle = 'lime';
-    ctx.fillRect(entity.x, entity.y - 10, barWidth * healthPercent, barHeight);
+
+    ctx.fillStyle = "lime";
+    ctx.fillRect(entity.x, entity.y - 10, barWidth * hp, barHeight);
   }
 
   function drawPlayer() {
-    if (playerDirection === 'left') {
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(playerImg, -player.x - player.width, player.y, player.width, player.height);
-      ctx.restore();
+    if (playerImg.complete) {
+      if (playerDirection === 'left') {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(playerImg, -player.x - player.width, player.y, player.width, player.height);
+        ctx.restore();
+      } else {
+        ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+      }
     } else {
-      ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+      ctx.fillStyle = "blue";
+      ctx.fillRect(player.x, player.y, player.width, player.height);
     }
     drawHealthBar(player);
   }
@@ -114,69 +124,66 @@
   }
 
   function drawBullets() {
-    ctx.fillStyle = 'black';
-    bullets.forEach(bullet => {
-      ctx.fillRect(bullet.x, bullet.y, 8, 8);
+    ctx.fillStyle = "black";
+    bullets.forEach(b => {
+      ctx.fillRect(b.x, b.y, 8, 8);
     });
   }
 
   function createExplosion(x, y) {
-    explosions.push({ x, y, radius: 400, alpha: 1 });
+    explosions.push({ x, y, radius: 10, alpha: 1 });
   }
 
   function drawExplosions() {
-    explosions.forEach(explosion => {
+    explosions.forEach(ex => {
       ctx.beginPath();
-      ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(235, 235, 0, ${explosion.alpha})`; // orange color
+      ctx.arc(ex.x, ex.y, ex.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(235,235,0,${ex.alpha})`;
       ctx.fill();
     });
   }
 
-  function drawEnemyCount() {
-  const aliveEnemies = enemies.filter(e => e.alive).length;
-  ctx.font = '16px Arial';
-  ctx.fillStyle = 'red';
-  ctx.textAlign = 'right';
-  ctx.fillText(`Enemies: ${aliveEnemies}`, canvas.width - 10, 20);
-}
-    
   function updateExplosions() {
-  for (let i = explosions.length - 1; i >= 0; i--) {
-    const ex = explosions[i];
-    ex.radius += 2;
-    ex.alpha -= 0.05;
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      const ex = explosions[i];
+      ex.radius += 2;
+      ex.alpha -= 0.05;
 
-    enemies.forEach(enemy => {
-      if (enemy.alive) {
-        const dx = (enemy.x + enemy.width / 2) - ex.x;
-        const dy = (enemy.y + enemy.height / 2) - ex.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+      enemies.forEach(enemy => {
+        if (enemy.alive) {
+          const dx = enemy.x + enemy.width/2 - ex.x;
+          const dy = enemy.y + enemy.height/2 - ex.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
 
-        if (distance < ex.radius) {
-          enemy.health -= enemy.isSuper ? 1 : 10; // clearer logic
+          if (dist < ex.radius) {
+            enemy.health -= enemy.isSuper ? 1 : 10;
+          }
         }
-      }
-    });
+      });
 
-    if (ex.alpha <= 0) {
-      explosions.splice(i, 1);
+      if (ex.alpha <= 0) explosions.splice(i, 1);
     }
   }
-}
 
+  function drawEnemyCount() {
+    const alive = enemies.filter(e => e.alive).length;
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "red";
+    ctx.textAlign = "right";
+    ctx.fillText(`Enemies: ${alive}`, canvas.width - 10, 20);
+  }
 
   function drawGround() {
-    ctx.fillStyle = 'green';
+    ctx.fillStyle = "green";
     ctx.fillRect(0, canvas.height - tileSize, canvas.width, tileSize);
 
     if (!platformBlock.broken) {
-      ctx.fillStyle = '#a0a8ad';
+      ctx.fillStyle = "#a0a8ad";
       ctx.fillRect(platformBlock.x, platformBlock.y, platformBlock.width, platformBlock.height);
     }
 
     placedBlocks.forEach(block => {
-      ctx.fillStyle = '#a0a8ad';
+      ctx.fillStyle = "#a0a8ad";
       ctx.fillRect(block.x, block.y, block.width, block.height);
     });
   }
@@ -204,11 +211,29 @@
     placedBlocks.forEach(block => {
       const hitX = player.x < block.x + block.width && player.x + player.width > block.x;
       const hitY = player.y + player.height >= block.y && player.y + player.height <= block.y + velocityY + 1;
-      if (hitX && hitY && velocityY >= 0) {
-        isOnGround = true;
-        velocityY = 0;
+      if (hitX && hitY) {
         player.y = block.y - player.height;
+        velocityY = 0;
+        isOnGround = true;
       }
+    });
+  }
+
+  function forgeSuperEnemy() {
+    superEnemyCount++;
+    enemies.length = 0;
+    enemies.push({
+      x: 400,
+      y: 100,
+      width: tileSize * 3,
+      height: tileSize * 3,
+      color: 'darkred',
+      speed: 2,
+      health: 50,
+      alive: true,
+      velocityY: 0,
+      onGround: false,
+      isSuper: true
     });
   }
 
@@ -230,99 +255,58 @@
       enemy.x += direction * enemy.speed;
       enemy.velocityY += gravity;
       enemy.y += enemy.velocityY;
-      enemy.onGround = false;
 
       if (enemy.y + enemy.height > canvas.height - tileSize) {
         enemy.y = canvas.height - tileSize - enemy.height;
         enemy.velocityY = jumpPower;
-        enemy.onGround = true;
       }
 
       if (enemy.health <= 0) {
         enemy.alive = false;
         deathCount++;
 
-        // Duplicate enemy after 5 kills
         if (deathCount >= 5) {
-          const newEnemy = { ...enemy, x: enemy.x + 50, y: 100, alive: true, health: 100 };
-          enemies.push(newEnemy); // Add a duplicate enemy
-          deathCount = 0; // Reset death count
-       const aliveEnemies = enemies.filter(e => e.alive).length;
+          enemies.push({ ...enemy, x: enemy.x + 50, y: 100, alive: true, health: 100 });
+          deathCount = 0;
 
-            if (aliveEnemies == 100 && !enemies.some(e => e.isSuper)) {
-  forgeSuperEnemy();
-}
-
-        
+          const alive = enemies.filter(e => e.alive).length;
+          if (alive >= 100 && !enemies.some(e => e.isSuper)) {
+            forgeSuperEnemy();
+          }
         }
       }
     });
   }
 
-let superEnemyCount = 0; // Place this near the top with your other global variables
+  function updateBullets() {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.x += b.vx;
+      b.y += b.vy;
+      let hit = false;
 
-function forgeSuperEnemy() {
-  superEnemyCount++;
+      enemies.forEach(enemy => {
+        if (
+          enemy.alive &&
+          b.x > enemy.x && b.x < enemy.x + enemy.width &&
+          b.y > enemy.y && b.y < enemy.y + enemy.height
+        ) {
+          enemy.health -= enemy.isSuper ? 1 : 10;
+          hit = true;
+        }
+      });
 
-  enemies.length = 0;
+      if (
+        b.x < 0 || b.x > canvas.width ||
+        b.y < 0 || b.y > canvas.height - tileSize
+      ) hit = true;
 
-  enemies.push({
-    x: 400,
-    y: 100,
-    width: tileSize * 3,
-    height: tileSize * 3,
-    color: 'darkred',
-    speed: 2,
-    health: 50,
-    alive: true,
-    velocityY: 0,
-    onGround: false,
-    isSuper: true
-  });
-
-  console.log(`Super Enemy #${superEnemyCount} has been forged!`);
-}
-
-
-    
-   
-    
-    function updateBullets() {
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    const bullet = bullets[i];
-    bullet.x += bullet.vx;
-    bullet.y += bullet.vy;
-
-    let hit = false;
-
-    // Check for enemy collision
-    // inside updateBullets()
-enemies.forEach(enemy => {
-  if (
-    enemy.alive &&
-    bullet.x > enemy.x && bullet.x < enemy.x + enemy.width &&
-    bullet.y > enemy.y && bullet.y < enemy.y + enemy.height
-  ) {
-    hit = true; // Don't apply damage here
-  }
-});
-
-
-    // Check for canvas boundaries (left, right, top, bottom)
-    if (
-      bullet.x < 0 || bullet.x > canvas.width ||
-      bullet.y < 0 || bullet.y > canvas.height - tileSize
-    ) {
-      hit = true;
-    }
-
-    if (hit) {
-      createExplosion(bullet.x, bullet.y);
-      bullets.splice(i, 1);
+      if (hit) {
+        createExplosion(b.x, b.y);
+        bullets.splice(i, 1);
+      }
     }
   }
-}
-
 
   function checkCollisions() {
     enemies.forEach(enemy => {
@@ -345,11 +329,11 @@ enemies.forEach(enemy => {
           breakTimer = 0;
         }
       }
-      placedBlocks.forEach((block, index) => {
+      placedBlocks.forEach((block, i) => {
         if (isCursorOver(block)) {
           breakTimer++;
           if (breakTimer >= breakTime) {
-            placedBlocks.splice(index, 1);
+            placedBlocks.splice(i, 1);
             breakTimer = 0;
           }
         }
@@ -368,22 +352,21 @@ enemies.forEach(enemy => {
   }
 
   function isCursorOver(block) {
-    return mouseX > block.x && mouseX < block.x + block.width &&
-           mouseY > block.y && mouseY < block.y + block.height;
+    return (
+      mouseX > block.x &&
+      mouseX < block.x + block.width &&
+      mouseY > block.y &&
+      mouseY < block.y + block.height
+    );
   }
 
-  function keyDown(event) {
-    if ((event.key === 'ArrowUp' || event.key === ' ') && isOnGround) {
-      velocityY = jumpPower;
-    }
-    if (event.key === 'ArrowLeft') keysPressed.left = true;
-    if (event.key === 'ArrowRight') keysPressed.right = true;
+  function keyDown(e) {
+    if ((e.key === 'ArrowUp' || e.key === ' ') && isOnGround) velocityY = jumpPower;
+    if (e.key === 'ArrowLeft') keysPressed.left = true;
+    if (e.key === 'ArrowRight') keysPressed.right = true;
+    if (e.key === 'p' || e.key === 'P') isShooting = true;
 
-    if (event.key === 'p' || event.key === 'P') {
-      isShooting = true;
-    }
-
-    if ((event.key === 'e' || event.key === 'E') && platformBlock.broken) {
+    if ((e.key === 'e' || e.key === 'E') && platformBlock.broken) {
       placedBlocks.push({
         x: Math.floor(mouseX / tileSize) * tileSize,
         y: Math.floor(mouseY / tileSize) * tileSize,
@@ -393,31 +376,28 @@ enemies.forEach(enemy => {
     }
   }
 
-  function keyUp(event) {
-    if (event.key === 'ArrowLeft') keysPressed.left = false;
-    if (event.key === 'ArrowRight') keysPressed.right = false;
-
-    if (event.key === 'p' || event.key === 'P') {
-      isShooting = false;
-    }
+  function keyUp(e) {
+    if (e.key === 'ArrowLeft') keysPressed.left = false;
+    if (e.key === 'ArrowRight') keysPressed.right = false;
+    if (e.key === 'p' || e.key === 'P') isShooting = false;
   }
 
-  function mouseMove(event) {
+  function mouseMove(e) {
     const rect = canvas.getBoundingClientRect();
-    mouseX = event.clientX - rect.left;
-    mouseY = event.clientY - rect.top;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
   }
 
-  function mouseDown(event) {
-    if (event.button === 0) {
+  function mouseDown(e) {
+    if (e.button === 0) {
       isMouseDown = true;
       breakTimer = 0;
       shootBullet();
     }
   }
 
-  function mouseUp(event) {
-    if (event.button === 0) {
+  function mouseUp(e) {
+    if (e.button === 0) {
       isMouseDown = false;
       breakTimer = 0;
     }
@@ -425,6 +405,7 @@ enemies.forEach(enemy => {
 
   function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     if (isShooting) {
       shootCooldown--;
       if (shootCooldown <= 0) {
@@ -432,6 +413,7 @@ enemies.forEach(enemy => {
         shootCooldown = shootDelay;
       }
     }
+
     drawGround();
     updatePlayerMovement();
     updateEnemy();
@@ -439,21 +421,24 @@ enemies.forEach(enemy => {
     updateBreaking();
     updateExplosions();
     checkCollisions();
+
     drawPlayer();
     drawEnemies();
     drawBullets();
     drawExplosions();
     drawEnemyCount();
+
     requestAnimationFrame(gameLoop);
   }
 
-  window.addEventListener('keydown', keyDown);
-  window.addEventListener('keyup', keyUp);
-  canvas.addEventListener('mousemove', mouseMove);
-  canvas.addEventListener('mousedown', mouseDown);
-  canvas.addEventListener('mouseup', mouseUp);
-  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener("keydown", keyDown);
+  window.addEventListener("keyup", keyUp);
+  canvas.addEventListener("mousemove", mouseMove);
+  canvas.addEventListener("mousedown", mouseDown);
+  canvas.addEventListener("mouseup", mouseUp);
+  window.addEventListener("resize", resizeCanvas);
 
+  let playerDirection = 'right';
   resizeCanvas();
   gameLoop();
 </script>
