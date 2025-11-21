@@ -272,6 +272,15 @@ sendBtn.onclick = () => {
   setTimeout(() => update(myRef, { chat: "", chatStart: 0 }), 3000);
 };
 
+// Add this:
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendBtn.click();
+  }
+});
+
+
 // ===== DATABASE LISTENERS =====
 onChildAdded(playersRef, snap => players[snap.key] = snap.val());
 onChildChanged(playersRef, snap => players[snap.key] = snap.val());
