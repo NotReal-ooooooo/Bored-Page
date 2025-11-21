@@ -13,33 +13,30 @@
     }
     
 
-button, button1, button2 {
-  position: absolute;
-  top: 800px;
-  background-color: #162460;
-  color: white;
-  padding: 6px 12px;      
-  border-radius: 2px;
-  outline: none;                /* remove default focus outline */
-  cursor: pointer;
-  font-size: 16px;
-  transition: transform 0.3s ease, background-color 0.3s ease;
-}
+  button {
+      position: absolute;
+      top: 800px;
+      background-color: #1e1e1e;
+      color: white;
+      padding: 6px 12px;
+      border: 2px solid black;    /* smaller black outline */
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: transform 0.3s ease, background-color 0.3s ease;
+    }
 
+    /* Hover effect */
+    button:hover {
+      transform: scale(1.2);
+      background-color: #333;
+    }
 
-    
-    
-button1 {
-  left: 40px;
-}
+    /* Button positions */
+    .btnMain { left: 250px; }
+    .btn1 { left: 40px; }
+    .btn2 { left: 460px; }
 
-button {
-  left: 250px;
-}
-
-button2 {
-  left: 460px;
-}
 
     
  #thingOnTop {
@@ -53,12 +50,7 @@ button2 {
       z-index: 20;     
  }
     
-button:hover,
-button1:hover,
-button2:hover {
-  transform: scale(1.2);
-  background-color: #388E3C;
-}
+
 
     
 .borderline1 {
@@ -166,25 +158,23 @@ button2:hover {
        z-index: 30;
      ">
 
+
   
-  
-  <button onclick="window.location.href='3D-test.html'">
-    <img src="3d.png"
-         style="
-       width: 100px;
-       height: 60px;"
-      >
-  </button>
-  <button1 onclick="window.location.href='2D-stuff.html'">
+<button class="btn1" onclick="window.location.href='2D-stuff.html'">
     Go to 2D Page
-  </button1>
-  <button2 onclick="window.location.href='multi.html'">
-        <img src="thing.png"
-         style="
-       width: 100px;
-       height: 60px;"
-      >
-  </button2>
+  </button>
+
+  <!-- Center button -->
+  <button class="btnMain" onclick="window.location.href='3D-test.html'">
+    <img src="3d.png" style="width:100px;height:60px;">
+  </button>
+
+  <!-- Right button -->
+  <button class="btn2" onclick="window.location.href='multi.html'">
+    <img src="thing.png" style="width:100px;height:60px;">
+  </button>
+
+
 </body>
 </html>
 
