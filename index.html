@@ -4,64 +4,52 @@
   <title>Bored Page | Main</title>
   <link rel="icon" type="image/png" href="profile.png">
   <style>
-        body {
+    body {
       background: #162460;
       margin: 0;
       padding: 0;
       color: white;
       font-family: Arial, sans-serif;
     }
-    
-
-  button {
+    button {
       position: absolute;
       background-color: #1e1e1e;
       color: white;
-      border: 2px solid black;    /* smaller black outline */
+      border: 2px solid black;
       border-radius: 2px;
       cursor: pointer;
       font-size: 16px;
       transition: transform 0.3s ease, background-color 0.3s ease;
     }
-
-    /* Hover effect */
     button:hover {
       transform: scale(1.2);
       background-color: #333;
     }
-
-    /* Button positions */
     .btnMain { left: 250px; top:400px; }
     .btn1 { left: 40px; top:400px; }
     .btn2 { left: 460px; top:400px; }
     .btnMore { left: 40px; top: 600px; }
-    
- #thingOnTop {
-      position: fixed;   /* stays in place when scrolling */
-      top: 0px;      /* 20px from bottom */
-      right: 0px;       /* 20px from right */
+
+    #thingOnTop {
+      position: fixed;
+      top: 0px;
+      right: 0px;
       width: 100vw;
       height: 50px;
       background-color: #000000;
       opacity: 0.8;
       z-index: 20;     
- }
-    
-
-
-    
-.borderline1 {
-  position: absolute;
-  top: 140px;         /* adjust so it sits below hbul & nbul */
-  left: 0;
-  width: 100%;
-  height: 3px;        /* thickness of the line */
-  background: #000000; /* line color */
-  z-index: 5;
-}
-
-    
-       #hbul {
+    }
+    .borderline1 {
+      position: absolute;
+      top: 140px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: #000000;
+      z-index: 5;
+    }
+    #hbul {
       position: absolute;
       top: 70px;
       left: 50px;
@@ -70,8 +58,7 @@
       color: #FFFFFF;
       z-index: 10;
     }
-
-  #nbul {
+    #nbul {
       position: absolute;
       top: 70px;
       right: 50px;
@@ -80,90 +67,115 @@
       color: #FFFFFF;
       z-index: 10;
     }
- 
-#credits {
-  position: absolute;
-  right: 20px;
-  top: 1025px;
-  transform: translateY(-50%);
-  font-size: 15px;
-  font-weight: bold;
-  color: #ffffff;
-  z-index: 30;
-  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
-  letter-spacing: 0.3px;
-  cursor: pointer; /* show hand cursor */
-  transition: color 0.2s ease; /* smooth color change */
-}
-
-#credits:hover {
-  color: #1a73e8; /* Google-style blue link */
-  text-decoration: underline; /* underline like a real link */
-}
-
-    
+    #credits {
+      position: absolute;
+      right: 20px;
+      top: 1025px;
+      transform: translateY(-50%);
+      font-size: 15px;
+      font-weight: bold;
+      color: #ffffff;
+      z-index: 30;
+      font-family: SFMono-Regular, Consolas, …, monospace;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    #credits:hover {
+      color: #1a73e8;
+      text-decoration: underline;
+    }
     #thingAtTheBottom {
-  position: absolute;
-  top: 1000px;
-  left: 0px;
-  width: 100vw;       /* give it a size */
-  height: 50px;
-  background: #000000;
-  z-index: 10;
-  opacity: 0.8;
-}
+      position: absolute;
+      top: 1000px;
+      left: 0px;
+      width: 100vw;
+      height: 50px;
+      background: #000000;
+      z-index: 10;
+      opacity: 0.8;
+    }
 
-#platDef {
-  position: absolute;
-  top: 780px;
-  left: 100vw;
-  width: 100vw;       /* give it a size */
-  height: 50px;
-  background: #000000;
-  z-index: 10;
-}
+    /* modal styles */
+    #login-modal {
+      display: none; /* hidden by default */
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #2a2a2a;
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 100;
+      box-shadow: 0 0 10px rgba(0,0,0,0.7);
+    }
+    #login-modal input {
+      display: block;
+      margin: 10px 0;
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+    }
+    #login-modal button {
+      margin-top: 10px;
+      width: 100%;
+    }
+    #login-modal .close-btn {
+      background: red;
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 24px;
+      height: 24px;
+      border: none;
+      color: white;
+      border-radius: 50%;
+      font-weight: bold;
+      cursor: pointer;
+    }
 
-
-    
   </style>
 </head>
 <body>
-  <div class=borderline1></div>
+  <div class="borderline1"></div>
   <div id="credits" onclick="window.location.href='credits.html'">credits</div>
-  <div id=thingOnTop></div>
-  <div id=thingAtTheBottom></div>
-  <div id=hbul>ARE YOU BORED?</div>
-  <div id=nbul>Why not TRY This Page's Stuff or Stuff(s)!</div>
-  <img src="profile.png" 
-       style="
-       position: fixed;
-       top: 10px;
-       left: 20px;
-       width: 30px;
-       height: 30px;
-       z-index: 30;
-     ">
+  <div id="thingOnTop"></div>
+  <div id="thingAtTheBottom"></div>
+  <div id="hbul">ARE YOU BORED?</div>
+  <div id="nbul">Why not TRY This Page's Stuff or Stuff(s)!</div>
+  <img src="profile.png" style="position: fixed; top: 10px; left: 20px; width: 30px; height: 30px; z-index: 30;">
 
-
-  
-<button class="btn1" onclick="window.location.href='2D-stuff.html'">
+  <button class="btn1" onclick="window.location.href='2D-stuff.html'">
     <img src="2d.png" style="width:170px;height:102px;"> 
   </button>
-
-  <!-- Center button -->
   <button class="btnMain" onclick="window.location.href='3D-test.html'">
     <img src="3d.png" style="width:170px;height:102px;">
   </button>
-
-  <!-- Right button -->
   <button class="btn2" onclick="window.location.href='multi.html'">
     <img src="thing.png" style="width:170px;height:102px;">
   </button>
 
-  <button class="btnMore" onclick="window.location.href='morestuff.html'">
-    | More |
-  </button>
+  <button class="btnMore" id="more-button">| More |</button>
 
+  <!-- Login Modal -->
+  <div id="login-modal">
+    <button class="close-btn" id="close-login">×</button>
+    <h3>Login / Sign Up</h3>
+    <input type="email" id="login-email" placeholder="Email" />
+    <input type="password" id="login-password" placeholder="Password" />
+    <button id="login-signin">Sign In</button>
+    <button id="login-signup">Sign Up</button>
+    <button id="login-google">Sign in with Google</button>
+    <div id="login-message" style="color: lightcoral; margin-top: 8px;"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <!-- Your app JS -->
+  <script src="app.js"></script>
 </body>
 </html>
+
 
