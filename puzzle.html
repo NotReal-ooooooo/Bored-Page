@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sketch Logic</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap');
+
+        :root {
+            --paper: #fdfbf7;
+            --grid-line: #e1e8ed;
+            --ink: #2c3e50;
+            --active-ink: #e74c3c;
+            --pencil: #95a5a6;
+            --sticky-note: #f1c40f;
+            --sticky-shadow: rgba(0,0,0,0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--paper);
+            font-family: 'Indie Flower', cursive;
+            color: var(--ink);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Graph Paper Background */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 25px 25px;
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        /* Header Area */
+        header {
+            width: 100%;
+            max-width: 500px;
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+            flex-shrink: 0; /* Prevent header from squishing */
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            transform: rotate(-2deg);
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--pencil);
+            transform: rotate(1deg);
+            margin-top: 0.2rem;
+        }
+
+        /* Settings Button */
+        #settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: var(--pencil);
+            transition: transform 0.3s;
+            z-index: 50;
+        }
+        
+        #settings-btn:hover {
+            transform: rotate(90deg);
+            color: var(--ink);
+        }
+
+        /* Game Wrapper to hold board and meter together */
+        #game-wrapper {
+            position: relative;
+            margin: 10px auto;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        /* Ink Meter */
+        #ink-meter-container {
+            position: absolute;
+            top: 50%;
+            right: 100%; /* Position to the left of the board */
+            margin-right: 20px; /* Spacing from board */
+            transform: translateY(-50%) rotate(-1deg); /* Center vertically relative to board */
+            
+            width: 40px;
+            height: 200px;
+            border: 3px solid var(--ink);
+            border-radius: 5px;
+            background: rgba(255,255,255,0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            overflow: hidden;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            z-index: 20;
+        }
+
+        /* Mobile Adjustment for Ink Meter */
+        @media (max-width: 600px) {
+            #ink-meter-container {
+                position: fixed; /* Stick to screen on mobile if board is full width */
+                left: 10px;
+                right: auto;
+                top: 50%;
+                margin-right: 0;
+                transform: translateY(-50%) rotate(-1deg);
+            }
+        }
+
+        #ink-meter-container::before {
+            content: 'INK';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        #ink-level {
+            width: 100%;
+            height: 100%;
+            background-color: var(--active-ink);
+            transition: height 0.2s linear;
+            position: relative;
+        }
+
+        /* Bubbles in ink */
+        #ink-level::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Game Container */
+        #game-board {
+            display: grid;
+            /* grid-template-columns is set via JS */
+            gap: 2px;
+            background: transparent;
+            padding: 10px;
+            margin: 0; /* Margin handled by wrapper now */
+            
+            /* Responsive Width Logic */
+            width: 100%;
+            max-width: 400px; /* Default Fallback */
+            
+            transition: max-width 0.3s;
+            position: relative;
+        }
+
+        /* Tiles */
+        .tile {
+            width: 100%;
+            aspect-ratio: 1;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.15s ease-out;
+            border-radius: 4px; /* Slight rounding */
+        }
+
+        .tile:active {
+            transform: scale(0.95);
+        }
+
+        /* The SVG Canvas inside each tile */
+        .tile svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+            filter: url(#rough-paper); /* Applies the sketchy texture */
+        }
+
+        /* Pipe Styles */
+        .pipe-path {
+            fill: none;
+            stroke: var(--ink);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: stroke 0.3s ease;
+        }
+
+        .pipe-inner {
+            fill: none;
+            stroke: var(--paper); /* The "hollow" part */
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .pipe-fill {
+            fill: none;
+            stroke: transparent;
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            /* Key transition for the flow effect */
+            transition: stroke 0.4s ease, stroke-width 0.4s ease; 
+        }
+
+        /* Active State (Flowing) */
+        .tile.active .pipe-fill {
+            stroke: var(--active-ink);
+            animation: flowWiggle 0.5s infinite alternate;
+        }
+
+        @keyframes flowWiggle {
+            from { stroke-width: 5; }
+            to { stroke-width: 7; }
+        }
+
+        /* Start/End Markers */
+        .marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 1.2rem;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* UI Controls (Sticky Notes) */
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 5px;
+            flex-shrink: 0;
+            margin-bottom: 50px; /* Space for hint */
+        }
+
+        .btn {
+            background: var(--sticky-note);
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Indie Flower', cursive;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--ink);
+            cursor: pointer;
+            box-shadow: 2px 3px 5px var(--sticky-shadow);
+            transform: rotate(-1deg);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 20%;
+            background: rgba(255,255,255,0.3); /* Sticky tape effect */
+        }
+
+        .btn:hover {
+            transform: rotate(1deg) scale(1.05);
+            box-shadow: 3px 5px 8px var(--sticky-shadow);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Level Info */
+        #level-display {
+            position: absolute;
+            top: 1rem;
+            left: 60px; /* Moved slightly to avoid collision with ink meter */
+            font-size: 1.5rem;
+            color: var(--active-ink);
+            transform: rotate(-10deg);
+            border: 2px solid var(--active-ink);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+        }
+
+        /* Modals (Win & Settings & Loss) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Settings Specific */
+        #settings-modal .modal-content {
+            background: var(--paper);
+            padding: 2rem;
+            border: 2px dashed var(--pencil);
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+            transform: rotate(1deg);
+        }
+
+        #settings-modal h2 {
+            margin-top: 0;
+            color: var(--ink);
+        }
+
+        .size-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        /* Win Screen Specific */
+        .star-stamp {
+            font-size: 8rem;
+            color: #f39c12;
+            text-shadow: 2px 2px 0 #d35400;
+            transform: rotate(-15deg) scale(0.5);
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+        }
+
+        #win-overlay.visible .star-stamp {
+            transform: rotate(-15deg) scale(1);
+            opacity: 1;
+        }
+        
+        /* Loss Screen Specific */
+        .skull-stamp {
+            font-size: 6rem;
+            color: var(--ink);
+            transform: rotate(10deg);
+            margin-bottom: 20px;
+        }
+
+        .win-text, .loss-text {
+            font-size: 2rem;
+            margin-top: 20px;
+            transform: rotate(2deg);
+        }
+        
+        .loss-text {
+            color: var(--active-ink);
+            font-weight: bold;
+        }
+
+        /* Sketchy Filter SVG (Hidden) */
+        .svg-filters {
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+
+        /* Tutorial/Hint */
+        .hint-text {
+            position: fixed;
+            bottom: 20px;
+            font-size: 1.1rem;
+            color: var(--pencil);
+            text-align: center;
+            width: 100%;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- SVG Filters for the "Hand Drawn" Look -->
+    <svg class="svg-filters">
+        <defs>
+            <filter id="rough-paper">
+                <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" />
+            </filter>
+        </defs>
+    </svg>
+    
+    <div id="level-display">1</div>
+    <button id="settings-btn" onclick="game.toggleSettings()">⚙️</button>
+
+    <header>
+        <h1>Sketch Logic</h1>
+        <div class="subtitle">Don't spill the ink!</div>
+    </header>
+
+    <!-- Wrapper to position Meter relative to Board -->
+    <div id="game-wrapper">
+        <div id="ink-meter-container">
+            <div id="ink-level"></div>
+        </div>
+        <div id="game-board">
+            <!-- Tiles generated by JS -->
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="game.resetLevel()">Scrap It</button>
+    </div>
+
+    <div class="hint-text">Tap to rotate. Open pipes leak ink!</div>
+
+    <!-- Win Modal -->
+    <div id="win-overlay" class="modal-overlay">
+        <div class="star-stamp">★</div>
+        <div class="win-text">Nice Work!</div>
+    </div>
+    
+    <!-- Loss Modal -->
+    <div id="loss-overlay" class="modal-overlay">
+        <div class="skull-stamp">☠️</div>
+        <div class="loss-text">Out of Ink!</div>
+        <button class="btn" onclick="game.resetLevel()" style="margin-top:20px;">Try Again</button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Paper Size</h2>
+            <div class="size-options">
+                <button class="btn" onclick="game.setSize(4, 5)">Small (4x5)</button>
+                <button class="btn" onclick="game.setSize(5, 6)">Medium (5x6)</button>
+                <button class="btn" onclick="game.setSize(6, 8)">Large (6x8)</button>
+            </div>
+            <button class="btn" style="background:var(--pencil); color:white;" onclick="game.toggleSettings()">Cancel</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * Game Logic
+ * "Doesn't look like AI" goals:
+ * - Imperfect grid generation (sometimes creates loops)
+ * - Organic traversal logic
+ * - Loose code structure
+ */
+
+// Bitmask for connections: Top(1), Right(2), Bottom(4), Left(8)
+const DIRS = {
+    TOP: 1,
+    RIGHT: 2,
+    BOTTOM: 4,
+    LEFT: 8
+};
+
+// SVG Path definitions for different tile types
+// Designed to look hand-drawn (slightly imperfect coordinates)
+const TILE_PATHS = {
+    // Straight
+    5: "M 50,5 L 50,95", 
+    10: "M 5,50 L 95,50",
+    
+    // Elbows
+    3: "M 50,5 Q 50,50 95,50", // Top-Right
+    6: "M 95,50 Q 50,50 50,95", // Right-Bottom
+    12: "M 50,95 Q 50,50 5,50", // Bottom-Left
+    9: "M 5,50 Q 50,50 50,5", // Left-Top
+
+    // T-Shapes (3-way)
+    7: "M 50,5 L 50,50 L 95,50 M 50,50 L 50,95", // T-Right
+    14: "M 95,50 L 50,50 L 50,95 M 50,50 L 5,50", // T-Bottom
+    13: "M 50,95 L 50,50 L 5,50 M 50,50 L 50,5", // T-Left
+    11: "M 5,50 L 50,50 L 50,5 M 50,50 L 95,50", // T-Top
+
+    // Cross
+    15: "M 50,5 L 50,95 M 5,50 L 95,50",
+    
+    // Endcaps (for Start/End nodes mostly)
+    1: "M 50,5 L 50,50",
+    4: "M 50,95 L 50,50",
+    8: "M 5,50 L 50,50",
+    2: "M 95,50 L 50,50"
+};
+
+class Game {
+    constructor() {
+        this.board = document.getElementById('game-board');
+        this.levelDisplay = document.getElementById('level-display');
+        this.winOverlay = document.getElementById('win-overlay');
+        this.lossOverlay = document.getElementById('loss-overlay');
+        this.settingsModal = document.getElementById('settings-modal');
+        this.inkMeter = document.getElementById('ink-level');
+        
+        this.cols = 5;
+        this.rows = 6;
+
+        this.grid = [];
+        this.level = 1;
+        this.startPos = {x:0, y:0};
+        this.endPos = {x:0, y:0};
+        this.isWon = false;
+        this.isGameOver = false;
+        
+        this.ink = 100;
+        this.lastTime = 0;
+
+        this.init();
+    }
+
+    init() {
+        this.updateBoardDimensions();
+        this.generateLevel();
+        this.render();
+        
+        // Start Game Loop
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
+    }
+    
+    loop(now) {
+        if(this.isWon || this.isGameOver) {
+            this.lastTime = now;
+            requestAnimationFrame((t) => this.loop(t));
+            return;
+        }
+
+        const dt = (now - this.lastTime) / 1000; // seconds
+        this.lastTime = now;
+
+        const leaks = this.countLeaks();
+        
+        // If leaking, drain ink
+        if (leaks > 0) {
+            // Drain rate base: 2% per second per leak
+            let drainRate = 2;
+            
+            // Adjust for grid size
+            // Large grids (6x8=48 tiles) get 20% slower drain
+            // Medium grids (5x6=30 tiles) get 10% slower drain (smoothing)
+            // Small grids (4x5=20 tiles) get base rate
+            const totalTiles = this.cols * this.rows;
+            
+            if (totalTiles >= 48) {
+                drainRate = 1.6; // 20% slower (2 * 0.8)
+            } else if (totalTiles >= 30) {
+                drainRate = 1.8; // 10% slower
+            }
+            
+            this.ink -= leaks * drainRate * dt;
+            
+            if (this.ink <= 0) {
+                this.ink = 0;
+                this.loseGame();
+            }
+        }
+        
+        // Update Meter UI
+        this.inkMeter.style.height = `${this.ink}%`;
+        
+        // Change color to warn user when low
+        if(this.ink < 30) {
+            this.inkMeter.style.backgroundColor = '#c0392b'; // Darker red warning
+        } else {
+            this.inkMeter.style.backgroundColor = 'var(--active-ink)';
+        }
+
+        requestAnimationFrame((t) => this.loop(t));
+    }
+
+    countLeaks() {
+        let leakCount = 0;
+        
+        for(let y=0; y<this.rows; y++) {
+            for(let x=0; x<this.cols; x++) {
+                let cell = this.grid[y][x];
+                
+                // Only active (filled) pipes leak
+                if (!cell.active) continue;
+                
+                // Active mask based on current rotation
+                let mask = this.getMaskFromShapeAndRotation(cell.baseShape, cell.currentRotation);
+                
+                // Check all 4 directions
+                // 1. TOP
+                if (mask & DIRS.TOP) {
+                    if (y === 0 || !(this.getMaskFor(x, y-1) & DIRS.BOTTOM)) {
+                        leakCount++;
+                    }
+                }
+                // 2. RIGHT
+                if (mask & DIRS.RIGHT) {
+                    if (x === this.cols-1 || !(this.getMaskFor(x+1, y) & DIRS.LEFT)) {
+                        leakCount++;
+                    }
+                }
+                // 3. BOTTOM
+                if (mask & DIRS.BOTTOM) {
+                    if (y === this.rows-1 || !(this.getMaskFor(x, y+1) & DIRS.TOP)) {
+                        leakCount++;
+                    }
+                }
+                // 4. LEFT
+                if (mask & DIRS.LEFT) {
+                    if (x === 0 || !(this.getMaskFor(x-1, y) & DIRS.RIGHT)) {
+                        leakCount++;
+                    }
+                }
+            }
+        }
+        return leakCount;
+    }
+    
+    // Helper to get mask of a neighbor safely
+    getMaskFor(x, y) {
+        if(x<0 || x>=this.cols || y<0 || y>=this.rows) return 0;
+        let c = this.grid[y][x];
+        return this.getMaskFromShapeAndRotation(c.baseShape, c.currentRotation);
+    }
+    
+    loseGame() {
+        this.isGameOver = true;
+        this.lossOverlay.classList.add('visible');
+    }
+
+    updateBoardDimensions() {
+        const aspectRatio = this.cols / this.rows;
+        // Limit height to roughly 60vh to prevent collision with bottom
+        const maxHeightVH = 60; 
+        const constrainedWidthVH = maxHeightVH * aspectRatio;
+        
+        this.board.style.maxWidth = `min(95vw, 500px, ${constrainedWidthVH}vh)`;
+    }
+
+    setSize(c, r) {
+        this.cols = c;
+        this.rows = r;
+        this.level = 1; 
+        this.toggleSettings();
+        
+        this.updateBoardDimensions(); // Apply size logic
+
+        this.generateLevel();
+        this.render();
+    }
+
+    toggleSettings() {
+        if (this.settingsModal.classList.contains('visible')) {
+            this.settingsModal.classList.remove('visible');
+        } else {
+            this.settingsModal.classList.add('visible');
+        }
+    }
+
+    // Generate a solvable level using a random walk/DFS approach
+    generateLevel() {
+        this.isWon = false;
+        this.isGameOver = false;
+        this.ink = 100; // Reset Ink
+        this.winOverlay.classList.remove('visible');
+        this.lossOverlay.classList.remove('visible');
+        this.grid = [];
+
+        // 1. Initialize empty grid
+        for(let y=0; y<this.rows; y++) {
+            let row = [];
+            for(let x=0; x<this.cols; x++) {
+                row.push({
+                    type: 0, // Bitmask
+                    rotation: 0, // 0-3
+                    locked: false,
+                    active: false,
+                    flowDepth: 0 // New property for flow animation
+                });
+            }
+            this.grid.push(row);
+        }
+
+        // 2. Create a random path from Start to End
+        // Simple randomized Prim's/DFS algorithm
+        let stack = [{x: Math.floor(Math.random()*this.cols), y: Math.floor(Math.random()*this.rows)}];
+        let visited = new Set();
+        
+        // Let's just pick random start/end for variety
+        this.startPos = {x: Math.floor(Math.random()*this.cols), y: 0};
+        this.endPos = {x: Math.floor(Math.random()*this.cols), y: this.rows-1};
+
+        let current = {...this.startPos};
+        let path = [current];
+        visited.add(`${current.x},${current.y}`);
+
+        // Safety break
+        let loops = 0;
+        
+        while((current.x !== this.endPos.x || current.y !== this.endPos.y) && loops < 1000) {
+            loops++;
+            let neighbors = [
+                {x:0, y:-1, d: DIRS.TOP, opp: DIRS.BOTTOM},
+                {x:1, y:0, d: DIRS.RIGHT, opp: DIRS.LEFT},
+                {x:0, y:1, d: DIRS.BOTTOM, opp: DIRS.TOP},
+                {x:-1, y:0, d: DIRS.LEFT, opp: DIRS.RIGHT}
+            ];
+
+            // Shuffle neighbors
+            neighbors.sort(() => Math.random() - 0.5);
+            
+            let found = false;
+            for(let n of neighbors) {
+                let nx = current.x + n.x;
+                let ny = current.y + n.y;
+
+                if (nx >= 0 && nx < this.cols && ny >= 0 && ny < this.rows && !visited.has(`${nx},${ny}`)) {
+                    // Update connections
+                    this.grid[current.y][current.x].type |= n.d;
+                    this.grid[ny][nx].type |= n.opp;
+                    
+                    current = {x:nx, y:ny};
+                    visited.add(`${nx},${ny}`);
+                    path.push(current);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                return this.generateLevel();
+            }
+        }
+
+        // 3. Add random fake branches
+        for(let y=0; y<this.rows; y++) {
+            for(let x=0; x<this.cols; x++) {
+                if (Math.random() > 0.4) {
+                    let neighbors = [DIRS.TOP, DIRS.RIGHT, DIRS.BOTTOM, DIRS.LEFT];
+                    let randomDir = neighbors[Math.floor(Math.random()*4)];
+                    this.grid[y][x].type |= randomDir;
+                }
+            }
+        }
+
+        // 4. Scramble Rotations
+        for(let y=0; y<this.rows; y++) {
+            for(let x=0; x<this.cols; x++) {
+                let cell = this.grid[y][x];
+                if(cell.type === 0) cell.type = (Math.random()>0.5 ? 5 : 10);
+                
+                let r = Math.floor(Math.random() * 4);
+                let shape = this.getShapeFromMask(cell.type);
+                cell.baseShape = shape; 
+                cell.currentRotation = Math.floor(Math.random() * 4);
+            }
+        }
+        
+        // Ensure DOM rebuild on next render
+        this.board.innerHTML = '';
+    }
+
+    getShapeFromMask(mask) {
+        const map = {
+            5: 'straight', 10: 'straight',
+            3: 'corner', 6: 'corner', 12: 'corner', 9: 'corner',
+            7: 't', 14: 't', 13: 't', 11: 't',
+            15: 'cross',
+            1: 'cap', 2: 'cap', 4: 'cap', 8: 'cap',
+            0: 'straight' // Fallback
+        };
+        return map[mask] || 'cross';
+    }
+
+    getMaskFromShapeAndRotation(shape, rotation) {
+        const bases = { 'straight': 5, 'corner': 3, 't': 7, 'cross': 15, 'cap': 1 };
+        let mask = bases[shape];
+        for(let i=0; i<rotation; i++) {
+            let newMask = 0;
+            if(mask & 1) newMask |= 2;
+            if(mask & 2) newMask |= 4;
+            if(mask & 4) newMask |= 8;
+            if(mask & 8) newMask |= 1;
+            mask = newMask;
+        }
+        return mask;
+    }
+
+    getSvgPath(shape, rotation) {
+        let mask = this.getMaskFromShapeAndRotation(shape, rotation);
+        return TILE_PATHS[mask] || TILE_PATHS[15];
+    }
+
+    render() {
+        this.board.style.gridTemplateColumns = `repeat(${this.cols}, 1fr)`;
+
+        // 1. Calculate Flow & Depth
+        this.calculateFlow();
+
+        // 2. Build DOM if empty (first load or new level)
+        let tiles = this.board.children;
+        let needsBuild = tiles.length !== (this.cols * this.rows);
+
+        if (needsBuild) {
+            this.board.innerHTML = '';
+            for(let y=0; y<this.rows; y++) {
+                for(let x=0; x<this.cols; x++) {
+                    let el = document.createElement('div');
+                    el.className = 'tile';
+                    el.onclick = () => this.rotateTile(x, y);
+                    
+                    // Create basic structure with placeholders
+                    let svg = `
+                        <svg viewBox="0 0 100 100">
+                            <path class="pipe-path" />
+                            <path class="pipe-inner" />
+                            <path class="pipe-fill" />
+                        </svg>
+                    `;
+                    el.innerHTML = svg;
+                    this.board.appendChild(el);
+                }
+            }
+            tiles = this.board.children; // refresh ref
+        }
+
+        // 3. Update Existing DOM Elements
+        for(let y=0; y<this.rows; y++) {
+            for(let x=0; x<this.cols; x++) {
+                let cell = this.grid[y][x];
+                let el = tiles[y * this.cols + x];
+                
+                let isStart = (x === this.startPos.x && y === this.startPos.y);
+                let isEnd = (x === this.endPos.x && y === this.endPos.y);
+
+                // Update Active Class
+                if(cell.active) el.classList.add('active');
+                else el.classList.remove('active');
+
+                // Update Paths
+                let pathData = this.getSvgPath(cell.baseShape, cell.currentRotation);
+                let paths = el.querySelectorAll('path');
+                
+                // Border & Inner
+                paths[0].setAttribute('d', pathData);
+                paths[1].setAttribute('d', pathData);
+                
+                // Fill & Animation Logic
+                let fillPath = paths[2];
+                fillPath.setAttribute('d', pathData);
+                
+                let delay = cell.active ? (cell.flowDepth * 0.15) : 0; // 0.15s per step
+                fillPath.style.stroke = cell.active ? 'var(--active-ink)' : 'transparent';
+                fillPath.style.transitionDelay = `${delay}s`;
+
+                // Handle Markers (S/E)
+                // Remove old marker if present
+                let existingMarker = el.querySelector('.marker');
+                if(existingMarker) existingMarker.remove();
+
+                if(isStart) {
+                    let m = document.createElement('div');
+                    m.className = 'marker';
+                    m.innerText = 'S';
+                    el.appendChild(m);
+                }
+                if(isEnd) {
+                    let m = document.createElement('div');
+                    m.className = 'marker';
+                    m.innerText = 'E';
+                    el.appendChild(m);
+                }
+            }
+        }
+        
+        this.levelDisplay.innerText = this.level;
+    }
+
+    rotateTile(x, y) {
+        if(this.isWon || this.isGameOver) return;
+        
+        let cell = this.grid[y][x];
+        cell.currentRotation = (cell.currentRotation + 1) % 4;
+        
+        this.render();
+        this.checkWin();
+    }
+
+    calculateFlow() {
+        // Reset state
+        for(let row of this.grid) row.forEach(c => {
+            c.active = false;
+            c.flowDepth = 0;
+        });
+
+        // BFS from Start with Depth Tracking
+        let queue = [{x: this.startPos.x, y: this.startPos.y, depth: 0}];
+        
+        let startCell = this.grid[this.startPos.y][this.startPos.x];
+        startCell.active = true;
+        startCell.flowDepth = 0;
+
+        let visited = new Set();
+        visited.add(`${this.startPos.x},${this.startPos.y}`);
+
+        while(queue.length > 0) {
+            let curr = queue.shift();
+            let cx = curr.x;
+            let cy = curr.y;
+            let cell = this.grid[cy][cx];
+            let mask = this.getMaskFromShapeAndRotation(cell.baseShape, cell.currentRotation);
+
+            let neighbors = [
+                {x:0, y:-1, d: DIRS.TOP, opp: DIRS.BOTTOM},
+                {x:1, y:0, d: DIRS.RIGHT, opp: DIRS.LEFT},
+                {x:0, y:1, d: DIRS.BOTTOM, opp: DIRS.TOP},
+                {x:-1, y:0, d: DIRS.LEFT, opp: DIRS.RIGHT}
+            ];
+
+            for(let n of neighbors) {
+                if (mask & n.d) {
+                    let nx = cx + n.x;
+                    let ny = cy + n.y;
+
+                    if(nx >= 0 && nx < this.cols && ny >= 0 && ny < this.rows) {
+                        let neighborCell = this.grid[ny][nx];
+                        let neighborMask = this.getMaskFromShapeAndRotation(neighborCell.baseShape, neighborCell.currentRotation);
+                        
+                        if (neighborMask & n.opp) {
+                            if (!visited.has(`${nx},${ny}`)) {
+                                neighborCell.active = true;
+                                neighborCell.flowDepth = curr.depth + 1; // Increase depth
+                                visited.add(`${nx},${ny}`);
+                                queue.push({x:nx, y:ny, depth: curr.depth + 1});
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    checkWin() {
+        if(this.grid[this.endPos.y][this.endPos.x].active) {
+            this.isWon = true;
+            
+            const messages = ["Ink flowing!", "Connected!", "Smooth!", "Artistic!", "Lovely!"];
+            document.querySelector('.win-text').innerText = messages[Math.floor(Math.random()*messages.length)];
+            
+            this.winOverlay.classList.add('visible');
+            
+            setTimeout(() => {
+                this.nextLevel();
+            }, 2000);
+        }
+    }
+
+    nextLevel() {
+        this.level++;
+        this.generateLevel();
+        this.render();
+    }
+    
+    resetLevel() {
+        this.generateLevel();
+        this.render();
+    }
+}
+
+// Start game
+const game = new Game();
+
+</script>
+</body>
+</html>
