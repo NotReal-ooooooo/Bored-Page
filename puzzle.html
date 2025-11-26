@@ -405,17 +405,7 @@
             height: 0;
         }
 
-        /* Tutorial/Hint */
-        .hint-text {
-            position: fixed;
-            bottom: 20px;
-            font-size: 1.1rem;
-            color: var(--pencil);
-            text-align: center;
-            width: 100%;
-            pointer-events: none;
-        }
-
+      
     </style>
 </head>
 <body>
@@ -435,7 +425,7 @@
 
     <header>
         <h1>Ink Flower</h1>
-        <div class="subtitle">Don't spill the ink!</div>
+        <div class="subtitle">Connect from "S" Pipe to "E" Pipe</div>
     </header>
 
     <!-- Wrapper to position Meter relative to Board -->
@@ -452,7 +442,6 @@
         <button class="btn" onclick="game.resetLevel()">Scrap It</button>
     </div>
 
-    <div class="hint-text">Tap to rotate. Open pipes leak ink!</div>
 
     <!-- Win Modal -->
     <div id="win-overlay" class="modal-overlay">
