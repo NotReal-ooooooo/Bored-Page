@@ -117,8 +117,31 @@
   <button class="btn2" onclick="window.location.href='multi.html'">
     <img src="thing.png" style="width:170px;height:102px;">
   </button>
-    <button class="btnMore" onclick="window.location.href='morestuff.html'">| More |</button>
+    <button class="btnMore" onclick="window.location.href='access()">| More |</button>
+
+
+  
 </body>
+<script>
+const accessKey = "hippopotomonstrosesquippedaliophobia";
+
+function access() {
+  const userKey = prompt("Insert Access Key");
+
+  if (userKey !== accessKey) {
+    setTimeout(() => {
+      window.open('', '_self');
+      window.close();
+    }, 1);
+  }
+
+  if (userKey === accessKey) {
+    window.location.href = 'about:blank';
+  }
+}
+
+</script>
+  
 </html>
 
 
