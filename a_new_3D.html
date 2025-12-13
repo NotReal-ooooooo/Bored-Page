@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airomaniac</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #000;
+        }
+
+        /* --- UI OVERLAYS --- */
+        
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            z-index: 100;
+            user-select: none;
+        }
+
+        #home-screen { display: flex; } /* Visible by default */
+        #controls-screen { display: none; z-index: 110; background: rgba(0,0,0,0.9); }
+
+        h1 { font-size: 3em; margin-bottom: 20px; text-shadow: 0 0 10px #00ffff; }
+        h2 { color: #87CEEB; }
+
+        .menu-btn {
+            background: transparent;
+            color: white;
+            border: 2px solid #00ffff;
+            padding: 15px 40px;
+            font-size: 1.5em;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .menu-btn:hover {
+            background: #00ffff;
+            color: black;
+            box-shadow: 0 0 20px #00ffff;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+            max-width: 400px;
+        }
+        .key-badge {
+            background: #333;
+            border: 1px solid #666;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-weight: bold;
+            color: #ffff00;
+        }
+
+        /* --- IN-GAME HUD --- */
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: transparent;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            z-index: 5;
+        }
+        .dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* COOLDOWN BAR STYLES */
+        #cooldown-container {
+            position: absolute;
+            top: 53%; /* Slightly below crosshair */
+            left: 50%;
+            transform: translate(-50%, 0);
+            width: 60px; /* Length of the line */
+            height: 1px; /* Thinner line */
+            background: rgba(255, 255, 255, 0.1); /* Faint background */
+            border-radius: 2px;
+            pointer-events: none;
+            display: none; /* Hidden by default */
+            z-index: 5;
+        }
+        #cooldown-bar {
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            border-radius: 2px;
+            margin: 0 auto; /* Centers the shrinking bar */
+        }
+
+        /* --- SETTINGS MENU --- */
+        #settings-menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #444;
+            display: none;
+            z-index: 100;
+            width: 300px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,255,255,0.2);
+        }
+        .setting-row { margin: 15px 0; text-align: left; }
+        .setting-row label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .control-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #666;
+            padding: 8px 15px;
+            cursor: pointer;
+            width: 100%;
+            border-radius: 4px;
+        }
+        .control-btn:hover { background: #555; }
+        .control-btn.waiting { background: #e67e22; color: black; border-color: #d35400; }
+        input[type="range"] { width: 100%; }
+        #close-settings {
+            margin-top: 20px;
+            background: #27ae60;
+            border: none;
+            padding: 10px 20px;
+            color: white; font-weight: bold; cursor: pointer; border-radius: 5px;
+        }
+        #close-settings:hover { background: #2ecc71; }
+
+    </style>
+</head>
+<body>
+
+    <!-- HOME SCREEN -->
+    <div id="home-screen" class="overlay">
+        <h1>Airomaniac</h1>
+        <button class="menu-btn" onclick="startGame()">PLAY</button>
+        <button class="menu-btn" onclick="openControls()">CONTROLS</button>
+    </div>
+
+    <!-- CONTROLS SCREEN -->
+    <div id="controls-screen" class="overlay">
+        <h2>CONTROLS</h2>
+        <div class="info-panel">
+            <p><span class="key-badge">W,A,S,D</span> Move & Strafe</p>
+            <p><span class="key-badge">SHIFT</span> Sprint</p>
+            <p><span class="key-badge">SPACE</span> Jump (Boosts Speed)</p>
+            <p><span class="key-badge">MOUSE CLICK</span> Punch</p>
+            <p><span class="key-badge">P</span> Open Settings</p>
+        </div>
+        <button class="menu-btn" style="font-size: 1em; padding: 10px 30px;" onclick="closeControls()">BACK</button>
+    </div>
+
+    <!-- Simple Crosshair UI -->
+    <div id="crosshair"><div class="dot"></div></div>
+
+    <!-- Cooldown Bar UI -->
+    <div id="cooldown-container">
+        <div id="cooldown-bar"></div>
+    </div>
+
+    <!-- Settings Menu Overlay -->
+    <div id="settings-menu">
+        <h2>Settings</h2>
+
+        <div class="setting-row">
+            <label>Player Name</label>
+            <input id="name-input" type="text" style="width:100%; padding:6px;">
+        </div>
+
+        
+        <div class="setting-row">
+            <label>Mouse Sensitivity: <span id="sens-val">0.002</span></label>
+            <input type="range" id="sensitivity-slider" min="0.0005" max="0.01" step="0.0001" value="0.002">
+        </div>
+
+        <h3>Key Bindings</h3>
+        <p style="font-size: 0.8em; color: #ccc;">Click button, then press key to rebind.</p>
+        
+        <div class="setting-row">
+            <label>Forward</label>
+            <button id="btn-forward" class="control-btn" onclick="startRemap('forward')">W</button>
+        </div>
+        <div class="setting-row">
+            <label>Left</label>
+            <button id="btn-left" class="control-btn" onclick="startRemap('left')">A</button>
+        </div>
+        <div class="setting-row">
+            <label>Backward</label>
+            <button id="btn-backward" class="control-btn" onclick="startRemap('backward')">S</button>
+        </div>
+        <div class="setting-row">
+            <label>Right</label>
+            <button id="btn-right" class="control-btn" onclick="startRemap('right')">D</button>
+        </div>
+        <div class="setting-row">
+            <label>Sprint</label>
+            <button id="btn-sprint" class="control-btn" onclick="startRemap('sprint')">SHIFT</button>
+        </div>
+
+        <button id="close-settings" onclick="toggleSettings()">Resume</button>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+       // 🔥 Firebase Setup
+const firebaseConfig = {
+  apiKey: "AIzaSyDFH2fJiBn84OHcd4Xo8ky66iFXYyMSwlE",
+  authDomain: "d-multi-7157c.firebaseapp.com",
+  databaseURL: "https://d-multi-7157c-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "d-multi-7157c",
+  storageBucket: "d-multi-7157c.appspot.com",
+  messagingSenderId: "1021603155174",
+  appId: "1:1021603155174:web:5bc4ab304ea6634c9fbf27"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.database();
+
+let playerId = null;
+let playerName = null;
+const otherPlayers = {};
+        
+        
+        // --- VARIABLES ---
+        let scene, camera, renderer;
+        let player;
+        
+        // Arm Parts (Skin)
+        let rightFist; // Round sphere
+        let rightForearm;
+        let rightBicep;
+
+        // Arm Parts (Shirt)
+        let rightForearmSleeve;
+        let rightBicepSleeve;
+        
+        // Game State
+        let gameState = 'MENU'; // 'MENU', 'PLAYING', 'PAUSED'
+        let menuCameraAngle = 0;
+
+        // --- PHYSICS VARIABLES ---
+        const playerVelocity = new THREE.Vector3(); // X, Y, Z
+        let isGrounded = false;
+        
+        // Physics Constants
+        const GRAVITY = 0.03;
+        const JUMP_FORCE = 0.6;
+        const ACCELERATION = 0.02; // Slower walking speed
+        const AIR_ACCELERATION = 0.01; 
+        const GROUND_FRICTION = 0.90; 
+        const AIR_RESISTANCE = 0.98;  
+        const JUMP_BOOST = 1.6;
+        const SPRINT_MULTIPLIER = 2.0; // Adjusted multiplier for running
+        
+        // Combat Variables
+        let isPunching = false;
+        let punchStartTime = 0;
+        let lastPunchEndTime = 0; // For cooldown tracking
+        const PUNCH_DURATION = 350; // ms
+        const PUNCH_COOLDOWN = 2000; // 2 seconds
+
+        // Input
+        const keys = {}; 
+        
+        // Settings
+        let isSettingsOpen = false;
+        let mouseSensitivity = 0.002;
+        let remappingAction = null; 
+
+        // Default Bindings
+        const keyBindings = {
+            forward: 'w',
+            left: 'a',
+            backward: 's',
+            right: 'd',
+            sprint: 'shift'
+        };
+        
+        // View
+        let isFirstPersonView = true;
+        let cameraRotation = { x: 0, y: 0 }; 
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); 
+            scene.fog = new THREE.Fog(0x87CEEB, 20, 150);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            scene.add(camera); // Add camera to scene so it can hold the hand
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(500, 500);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            const grid = new THREE.GridHelper(500, 50);
+            scene.add(grid);
+
+            // Player (Invisible body for physics)
+            const playerGeo = new THREE.BoxGeometry(1, 2, 1);
+            const playerMat = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+            player = new THREE.Mesh(playerGeo, playerMat);
+            player.position.y = 1;
+            player.rotation.order = "YXZ"; 
+            player.castShadow = true;
+            scene.add(player);
+
+
+            // Player Name
+            playerName = localStorage.getItem("playerName");
+if (!playerName) {
+  playerName = prompt("Enter your name:");
+  localStorage.setItem("playerName", playerName);
+}
+
+
+            window.addEventListener("beforeunload", () => {
+  if (!playerId) return;
+  db.ref("players/" + playerId).update({
+    x: player.position.x,
+    y: player.position.y,
+    z: player.position.z,
+    rotY: player.rotation.y,
+    lastSeen: Date.now()
+  });
+});
+
+
+
+            
+            // --- CREATE ARTICULATED ARM ---
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xeec39a }); 
+            const shirtMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // White Shirt
+
+            // 1. The Fist (Simple Round Sphere - REVERTED)
+            const fistGeo = new THREE.SphereGeometry(0.2, 16, 16);
+            rightFist = new THREE.Mesh(fistGeo, skinMat);
+            rightFist.visible = false;
+            camera.add(rightFist);
+
+            // 2. The Forearm (Skin Cylinder)
+            const forearmGeo = new THREE.CylinderGeometry(0.12, 0.1, 1, 12);
+            forearmGeo.rotateX(-Math.PI / 2); 
+            forearmGeo.translate(0, 0, 0.5); 
+            rightForearm = new THREE.Mesh(forearmGeo, skinMat);
+            rightForearm.visible = false;
+            camera.add(rightForearm);
+
+            // 2b. The Forearm Sleeve (Shirt Cylinder) - Thicker, surrounds arm
+            const sleeveForearmGeo = new THREE.CylinderGeometry(0.15, 0.14, 1, 12);
+            sleeveForearmGeo.rotateX(-Math.PI / 2); 
+            sleeveForearmGeo.translate(0, 0, 0.5); 
+            rightForearmSleeve = new THREE.Mesh(sleeveForearmGeo, shirtMat);
+            rightForearmSleeve.visible = false;
+            camera.add(rightForearmSleeve);
+
+            // 3. The Bicep (Skin Cylinder)
+            const bicepGeo = new THREE.CylinderGeometry(0.13, 0.13, 1, 12);
+            bicepGeo.rotateX(-Math.PI / 2);
+            bicepGeo.translate(0, 0, 0.5);
+            rightBicep = new THREE.Mesh(bicepGeo, skinMat);
+            rightBicep.visible = false;
+            camera.add(rightBicep);
+
+            // 3b. The Bicep Sleeve (Shirt Cylinder)
+            const sleeveBicepGeo = new THREE.CylinderGeometry(0.16, 0.16, 1, 12);
+            sleeveBicepGeo.rotateX(-Math.PI / 2);
+            sleeveBicepGeo.translate(0, 0, 0.5);
+            rightBicepSleeve = new THREE.Mesh(sleeveBicepGeo, shirtMat);
+            rightBicepSleeve.visible = false;
+            camera.add(rightBicepSleeve);
+
+            player.position.set(0, 1, 0);
+        
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mousedown', onMouseDown);
+
+            // UI Listeners
+            document.getElementById('sensitivity-slider').addEventListener('input', (e) => {
+                mouseSensitivity = parseFloat(e.target.value);
+                document.getElementById('sens-val').innerText = mouseSensitivity.toFixed(4);
+            });
+
+            animate();
+
+
+
+
+        }
+
+        // --- MENU LOGIC ---
+
+        function startGame() {
+            gameState = 'PLAYING';
+            document.getElementById('home-screen').style.display = 'none';
+
+
+auth.signInAnonymously().then((user) => {
+  playerId = user.user.uid;
+  const ref = db.ref("players/" + playerId);
+
+  // Load saved data (position + rotation)
+  ref.once("value").then(snap => {
+    if (snap.exists()) {
+      const d = snap.val();
+
+      if (typeof d.x === "number") {
+        player.position.set(d.x, d.y, d.z);
+      }
+
+      if (typeof d.rotY === "number") {
+        player.rotation.y = d.rotY;
+        cameraRotation.y = d.rotY;
+      }
+    }
+  });
+
+  // Mark player online + save name
+  ref.update({
+    name: playerName,
+    x: player.position.x,
+    y: player.position.y,
+    z: player.position.z,
+    rotY: player.rotation.y,
+    online: true,
+    lastSeen: Date.now()
+  });
+
+  // DO NOT delete player — just mark offline
+  ref.onDisconnect().update({
+    online: false,
+    lastSeen: Date.now()
+  });
+
+    db.ref("players").on("value", snap => {
+  const players = snap.val() || {};
+
+  for (let id in players) {
+    if (id === playerId) continue;
+    if (!players[id].online) continue;
+
+    if (!otherPlayers[id]) {
+      createRemotePlayer(id, players[id]);
+    } else {
+      const p = otherPlayers[id];
+p.position.set(players[id].x, players[id].y, players[id].z);
+p.rotation.y = players[id].rotY || 0;
+
+if (p.userData.name !== players[id].name) {
+  updateNameSprite(p, players[id].name);
+}
+
+    }
+  }
+
+  for (let id in otherPlayers) {
+    if (!players[id] || !players[id].online) {
+      scene.remove(otherPlayers[id]);
+      delete otherPlayers[id];
+    }
+  }
+});
+
+});
+
+
+              function updateNameSprite(playerMesh, name) {
+  playerMesh.userData.name = name;
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = 256;
+  canvas.height = 64;
+
+  ctx.fillStyle = "white";
+  ctx.font = "30px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(name, 128, 40);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  playerMesh.children[0].material.map = texture;
+  playerMesh.children[0].material.needsUpdate = true;
+}
+
+            
+            // First Person Setup
+            isFirstPersonView = true;
+            document.body.requestPointerLock();
+            document.getElementById('crosshair').style.display = 'block';
+            
+            // SHOW HAND PARTS (Initial State)
+            if (rightFist) rightFist.visible = true;
+            
+            // Show forearm + sleeve
+            if (rightForearm) rightForearm.visible = true;
+            if (rightForearmSleeve) rightForearmSleeve.visible = true;
+
+            // Bicep stays hidden until punching
+            if (rightBicep) rightBicep.visible = false; 
+            if (rightBicepSleeve) rightBicepSleeve.visible = false; 
+            
+            // Sync initial look direction
+            cameraRotation.y = player.rotation.y;
+            cameraRotation.x = 0;
+            
+            updateCamera();
+        }
+
+        function openControls() {
+            document.getElementById('controls-screen').style.display = 'flex';
+        }
+
+        function closeControls() {
+            document.getElementById('controls-screen').style.display = 'none';
+        }
+
+
+        function syncPlayer() {
+  if (!playerId) return;
+  db.ref("players/" + playerId).update({
+    name: playerName,
+    x: player.position.x,
+    y: player.position.y,
+    z: player.position.z,
+    rotY: player.rotation.y,
+    lastSeen: Date.now()
+  });
+}
+
+
+
+        
+        // --- INPUT HANDLING ---
+        
+        function onKeyDown(e) {
+            // Remapping Priority
+            if (remappingAction) {
+                const newKey = e.key.toLowerCase();
+                if (newKey === 'p' || newKey === 'escape') {
+                    alert("Cannot bind to that key.");
+                    remappingAction = null;
+                    updateSettingsUI();
+                    return;
+                }
+                keyBindings[remappingAction] = newKey;
+                remappingAction = null;
+                updateSettingsUI();
+                return;
+            }
+
+            const key = e.key.toLowerCase();
+            keys[key] = true;
+
+            // Toggle Settings (Only if Playing)
+            if (key === 'p' && gameState === 'PLAYING') {
+                toggleSettings();
+                return;
+            }
+
+            // Game Logic Inputs
+            if (gameState === 'PLAYING' && !isSettingsOpen) {
+                // JUMP LOGIC with BOOST
+                if (key === ' ') {
+                    if (isGrounded) {
+                        playerVelocity.y = JUMP_FORCE;
+                        isGrounded = false;
+                        
+                        // AIR BOOST: If moving, multiply horizontal velocity
+                        playerVelocity.x *= JUMP_BOOST;
+                        playerVelocity.z *= JUMP_BOOST;
+                    }
+                }
+            }
+        }
+
+        function onKeyUp(e) {
+            const key = e.key.toLowerCase();
+            keys[key] = false;
+        }
+
+        function onMouseDown() {
+            if (gameState !== 'PLAYING' || isSettingsOpen) return;
+
+            if (isFirstPersonView && document.pointerLockElement !== document.body) {
+                document.body.requestPointerLock();
+            } else {
+                punch();
+            }
+        }
+
+        function onMouseMove(e) {
+            if (gameState !== 'PLAYING' || isSettingsOpen) return;
+
+            if (isFirstPersonView && document.pointerLockElement === document.body) {
+                cameraRotation.y -= e.movementX * mouseSensitivity;
+                cameraRotation.x -= e.movementY * mouseSensitivity;
+                cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
+            }
+        }
+
+
+        let lastSync = 0;
+
+
+function createRemotePlayer(id, data) {
+  const geo = new THREE.BoxGeometry(1, 2, 1);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(data.x, data.y, data.z);
+  scene.add(mesh);
+
+  // Name label
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = 256;
+  canvas.height = 64;
+  ctx.fillStyle = "white";
+  ctx.font = "30px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(data.name, 128, 40);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.position.set(0, 1.5, 0);
+  mesh.add(sprite);
+
+  otherPlayers[id] = mesh;
+}
+
+
+
+
+    
+        // --- SETTINGS LOGIC ---
+
+        function toggleSettings() {
+            isSettingsOpen = !isSettingsOpen;
+            const menu = document.getElementById('settings-menu');
+            
+            if (isSettingsOpen) {
+                menu.style.display = 'block';
+                document.exitPointerLock(); 
+                remappingAction = null;
+                updateSettingsUI();
+                document.getElementById("name-input").value = playerName;
+            } else {
+                menu.style.display = 'none';
+                const newName = document.getElementById("name-input").value.trim();
+if (newName && newName !== playerName) {
+  playerName = newName;
+  localStorage.setItem("playerName", playerName);
+
+  if (playerId) {
+    db.ref("players/" + playerId).update({
+      name: playerName
+    });
+  }
+}
+
+                if (isFirstPersonView) {
+                    document.body.requestPointerLock();
+                }
+            }
+        }
+
+        function startRemap(action) {
+            remappingAction = action;
+            const btn = document.getElementById('btn-' + action);
+            btn.innerText = "Press any key...";
+            btn.classList.add('waiting');
+        }
+
+        function updateSettingsUI() {
+            const actions = ['forward', 'left', 'backward', 'right', 'sprint'];
+            actions.forEach(act => {
+                const btn = document.getElementById('btn-' + act);
+                btn.innerText = keyBindings[act].toUpperCase();
+                btn.classList.remove('waiting');
+            });
+        }
+
+        // --- GAMEPLAY MECHANICS ---
+
+        function punch() {
+            if (isPunching) return; // Currently punching
+            if (Date.now() - lastPunchEndTime < PUNCH_COOLDOWN) return; // Cooldown active
+
+            isPunching = true;
+            punchStartTime = Date.now();
+        }
+
+        function updateCooldownUI() {
+            const container = document.getElementById('cooldown-container');
+            const bar = document.getElementById('cooldown-bar');
+            const now = Date.now();
+            
+            // Only show cooldown if not punching and within cooldown period
+            if (!isPunching && now - lastPunchEndTime < PUNCH_COOLDOWN) {
+                container.style.display = 'block';
+                const elapsed = now - lastPunchEndTime;
+                const remaining = PUNCH_COOLDOWN - elapsed;
+                const percent = (remaining / PUNCH_COOLDOWN) * 100;
+                bar.style.width = percent + '%';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function updateHandAnimation() {
+            // Force update world matrix to ensure we have latest camera transform
+            camera.updateMatrixWorld();
+
+            // 1. Define Key Positions (Relative to Camera)
+            // UPDATED: Moved hand more central and higher up to be visible
+            const shoulderPos = new THREE.Vector3(0.6, -0.6, 0.2); // Fixed Body Point (Shoulder)
+            const restFistPos = new THREE.Vector3(0.5, -0.35, -0.5); // Hand resting (Visible bottom-right)
+            
+            let currentFistPos = restFistPos.clone();
+            let fistRotation = new THREE.Euler(0, 0, 0);
+
+            // 2. Control Bicep Visibility
+            // Only show the upper arm (bicep) when actively punching
+            rightBicep.visible = isPunching;
+            rightBicepSleeve.visible = isPunching;
+
+            // 3. Calculate Punch Motion
+            if (isPunching) {
+                const elapsed = Date.now() - punchStartTime;
+                const progress = elapsed / PUNCH_DURATION;
+
+                if (progress >= 1) {
+                    isPunching = false;
+                    lastPunchEndTime = Date.now(); // Start cooldown
+                    currentFistPos = restFistPos.clone();
+                    rightBicep.visible = false; 
+                    rightBicepSleeve.visible = false;
+                } else {
+                    // Hook Swing Logic
+                    const wave = Math.sin(progress * Math.PI); 
+                    
+                    // TARGETING LOGIC:
+                    currentFistPos.x = restFistPos.x - (0.35 * wave); 
+                    currentFistPos.y = restFistPos.y + (0.15 * wave);
+                    currentFistPos.z = restFistPos.z - (0.5 * wave); 
+                    
+                    fistRotation.y = 0.8 * wave; 
+                    fistRotation.z = 0.3 * wave;
+                }
+            }
+
+            // 4. Update Fist Mesh
+            rightFist.position.copy(currentFistPos);
+            rightFist.rotation.copy(fistRotation);
+
+            // 5. Calculate Elbow Position (Simple IK)
+            const midPoint = new THREE.Vector3().addVectors(shoulderPos, currentFistPos).multiplyScalar(0.5);
+            
+            // "Zig" offset
+            const dist = shoulderPos.distanceTo(currentFistPos);
+            const maxLen = 1.8; 
+            const bendFactor = Math.max(0, 1.0 - (dist / maxLen)); 
+            
+            const elbowOffset = new THREE.Vector3(0.6 * bendFactor, -0.3 * bendFactor, 0);
+            const elbowPos = midPoint.add(elbowOffset);
+
+            // 5b. Calculate Cuff Position (Where Shirt Ends, slightly before wrist)
+            // 20% back from fist towards elbow
+            const cuffPos = new THREE.Vector3().lerpVectors(currentFistPos, elbowPos, 0.2);
+
+            // 6. Place Bicep (Shoulder -> Elbow)
+            if (rightBicep.visible) {
+                orientLimb(rightBicep, shoulderPos, elbowPos);
+                orientLimb(rightBicepSleeve, shoulderPos, elbowPos);
+            }
+
+            // 7. Place Forearm (Elbow -> Fist) - Skin
+            orientLimb(rightForearm, elbowPos, currentFistPos);
+
+            // 7b. Place Forearm Sleeve (Elbow -> Cuff) - Shirt
+            orientLimb(rightForearmSleeve, elbowPos, cuffPos);
+        }
+
+        // Helper to stretch a cylinder between two points
+        function orientLimb(mesh, start, end) {
+            mesh.position.copy(start);
+            
+            const worldEnd = end.clone();
+            mesh.parent.localToWorld(worldEnd);
+            mesh.lookAt(worldEnd);
+            
+            // Scale length to match distance
+            const dist = start.distanceTo(end);
+            mesh.scale.set(1, 1, dist); // Scale Z (length)
+        }
+
+        function updatePlayerMovement() {
+            if (isSettingsOpen) return;
+
+            // Determine Acceleration based on Ground/Air and Sprint status
+            let baseAccel = isGrounded ? ACCELERATION : AIR_ACCELERATION;
+            
+            // Apply Sprint Multiplier if key held
+            if (keys[keyBindings.sprint]) {
+                baseAccel *= SPRINT_MULTIPLIER;
+            }
+
+            const currentAccel = baseAccel;
+
+            // FORWARD / BACKWARD
+            if (keys[keyBindings.forward]) {
+                playerVelocity.x -= Math.sin(player.rotation.y) * currentAccel;
+                playerVelocity.z -= Math.cos(player.rotation.y) * currentAccel;
+            }
+            if (keys[keyBindings.backward]) {
+                playerVelocity.x += Math.sin(player.rotation.y) * currentAccel;
+                playerVelocity.z += Math.cos(player.rotation.y) * currentAccel;
+            }
+
+            // STRAFE LEFT / RIGHT
+            if (keys[keyBindings.left]) {
+                playerVelocity.x -= Math.sin(player.rotation.y + Math.PI/2) * currentAccel;
+                playerVelocity.z -= Math.cos(player.rotation.y + Math.PI/2) * currentAccel;
+            }
+            if (keys[keyBindings.right]) {
+                playerVelocity.x -= Math.sin(player.rotation.y - Math.PI/2) * currentAccel;
+                playerVelocity.z -= Math.cos(player.rotation.y - Math.PI/2) * currentAccel;
+            }
+
+            // FRICTION
+            const friction = isGrounded ? GROUND_FRICTION : AIR_RESISTANCE;
+            playerVelocity.x *= friction;
+            playerVelocity.z *= friction;
+
+            // ROTATION (Synced to Camera)
+            player.rotation.y = cameraRotation.y;
+
+            // GRAVITY
+            playerVelocity.y -= GRAVITY;
+            
+            player.position.add(playerVelocity);
+
+            // GROUND COLLISION
+            if (player.position.y <= 1) {
+                player.position.y = 1;
+                playerVelocity.y = 0;
+                isGrounded = true;
+            }
+        }
+
+        function updateCamera() {
+            // FPV Logic Only
+            camera.position.copy(player.position);
+            camera.position.y += 0.8; 
+            camera.rotation.order = "YXZ"; 
+            camera.rotation.y = cameraRotation.y;
+            camera.rotation.x = cameraRotation.x;
+            camera.rotation.z = 0; 
+        }
+
+        function updateMenuCamera() {
+            menuCameraAngle += 0.002;
+            const dist = 30;
+            camera.position.x = player.position.x + Math.sin(menuCameraAngle) * dist;
+            camera.position.z = player.position.z + Math.cos(menuCameraAngle) * dist;
+            camera.position.y = 15;
+            camera.lookAt(player.position);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameState === 'MENU') {
+                updateMenuCamera();
+            } else if (gameState === 'PLAYING') {
+    updatePlayerMovement();
+    updateCamera();
+    updateHandAnimation();
+    updateCooldownUI();
+
+    if (Date.now() - lastSync > 100) {
+        syncPlayer();
+        lastSync = Date.now();
+    }
+}
+
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
