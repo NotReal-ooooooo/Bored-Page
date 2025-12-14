@@ -255,6 +255,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 const db = firebase.database();
 
 let playerId = null;
@@ -278,7 +279,10 @@ const otherPlayers = {};
         // Game State
         let gameState = 'MENU'; // 'MENU', 'PLAYING', 'PAUSED'
         let menuCameraAngle = 0;
+        let multiplayerListenerAttached = false;
+        let playerDataReady = false;
 
+        
         // --- PHYSICS VARIABLES ---
         const playerVelocity = new THREE.Vector3(); // X, Y, Z
         let isGrounded = false;
@@ -372,15 +376,18 @@ if (!playerName) {
 
 
             window.addEventListener("beforeunload", () => {
-  if (!playerId) return;
+  if (!playerId || !playerDataReady) return;
+
   db.ref("players/" + playerId).update({
     x: player.position.x,
     y: player.position.y,
     z: player.position.z,
     rotY: player.rotation.y,
+    online: false,
     lastSeen: Date.now()
   });
 });
+
 
 
 
@@ -427,7 +434,6 @@ if (!playerName) {
             rightBicepSleeve.visible = false;
             camera.add(rightBicepSleeve);
 
-            player.position.set(0, 1, 0);
         
             // Event Listeners
             window.addEventListener('resize', onWindowResize);
@@ -449,6 +455,28 @@ if (!playerName) {
 
         }
 
+function updateNameSprite(playerMesh, name) {
+  playerMesh.userData.name = name;
+
+  const sprite = playerMesh.userData.nameSprite;
+  if (!sprite) return;
+
+  const canvas = sprite.material.map.image;
+  const ctx = canvas.getContext("2d");
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "white";
+  ctx.font = "30px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(name, 128, 40);
+
+  sprite.material.map.needsUpdate = true;
+}
+
+
+
+
+
         // --- MENU LOGIC ---
 
         function startGame() {
@@ -456,92 +484,18 @@ if (!playerName) {
             document.getElementById('home-screen').style.display = 'none';
 
 
-auth.signInAnonymously().then((user) => {
-  playerId = user.user.uid;
-  const ref = db.ref("players/" + playerId);
-
-  // Load saved data (position + rotation)
-  ref.once("value").then(snap => {
-    if (snap.exists()) {
-      const d = snap.val();
-
-      if (typeof d.x === "number") {
-        player.position.set(d.x, d.y, d.z);
-      }
-
-      if (typeof d.rotY === "number") {
-        player.rotation.y = d.rotY;
-        cameraRotation.y = d.rotY;
-      }
-    }
+if (auth.currentUser) {
+  onAuthReady(auth.currentUser);
+} else {
+  auth.signInAnonymously().then((cred) => {
+    onAuthReady(cred.user);
   });
-
-  // Mark player online + save name
-  ref.update({
-    name: playerName,
-    x: player.position.x,
-    y: player.position.y,
-    z: player.position.z,
-    rotY: player.rotation.y,
-    online: true,
-    lastSeen: Date.now()
-  });
-
-  // DO NOT delete player — just mark offline
-  ref.onDisconnect().update({
-    online: false,
-    lastSeen: Date.now()
-  });
-
-    db.ref("players").on("value", snap => {
-  const players = snap.val() || {};
-
-  for (let id in players) {
-    if (id === playerId) continue;
-    if (!players[id].online) continue;
-
-    if (!otherPlayers[id]) {
-      createRemotePlayer(id, players[id]);
-    } else {
-      const p = otherPlayers[id];
-p.position.set(players[id].x, players[id].y, players[id].z);
-p.rotation.y = players[id].rotY || 0;
-
-if (p.userData.name !== players[id].name) {
-  updateNameSprite(p, players[id].name);
 }
 
-    }
-  }
-
-  for (let id in otherPlayers) {
-    if (!players[id] || !players[id].online) {
-      scene.remove(otherPlayers[id]);
-      delete otherPlayers[id];
-    }
-  }
-});
-
-});
 
 
-              function updateNameSprite(playerMesh, name) {
-  playerMesh.userData.name = name;
 
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  canvas.width = 256;
-  canvas.height = 64;
-
-  ctx.fillStyle = "white";
-  ctx.font = "30px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(name, 128, 40);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  playerMesh.children[0].material.map = texture;
-  playerMesh.children[0].material.needsUpdate = true;
-}
+            
 
             
             // First Person Setup
@@ -577,7 +531,8 @@ if (p.userData.name !== players[id].name) {
 
 
         function syncPlayer() {
-  if (!playerId) return;
+  if (!playerId || !playerDataReady) return;
+
   db.ref("players/" + playerId).update({
     name: playerName,
     x: player.position.x,
@@ -587,6 +542,7 @@ if (p.userData.name !== players[id].name) {
     lastSeen: Date.now()
   });
 }
+
 
 
 
@@ -684,9 +640,10 @@ function createRemotePlayer(id, data) {
   const spriteMat = new THREE.SpriteMaterial({ map: texture });
   const sprite = new THREE.Sprite(spriteMat);
   sprite.position.set(0, 1.5, 0);
-  mesh.add(sprite);
+mesh.add(sprite);
+mesh.userData.nameSprite = sprite; // ✅ REQUIRED
+otherPlayers[id] = mesh;
 
-  otherPlayers[id] = mesh;
 }
 
 
@@ -842,6 +799,86 @@ if (newName && newName !== playerName) {
             orientLimb(rightForearmSleeve, elbowPos, cuffPos);
         }
 
+        function onAuthReady(user) {
+  playerId = user.uid;
+  if (multiplayerListenerAttached) return;
+  multiplayerListenerAttached = true;
+
+  const ref = db.ref("players/" + playerId);
+
+  ref.once("value").then(snap => {
+    if (snap.exists()) {
+      // ✅ EXISTING PLAYER → restore position
+      const d = snap.val();
+
+      if (typeof d.x === "number") {
+        player.position.set(d.x, d.y, d.z);
+      }
+
+      if (typeof d.rotY === "number") {
+        player.rotation.y = d.rotY;
+        cameraRotation.y = d.rotY;
+      }
+
+      // only mark online
+      ref.update({
+        online: true,
+        lastSeen: Date.now()
+      });
+
+    } else {
+      // 🆕 NEW PLAYER → create FULL DATA ONCE
+      ref.set({
+        name: playerName,
+        x: player.position.x,
+        y: player.position.y,
+        z: player.position.z,
+        rotY: player.rotation.y,
+        online: true,
+        lastSeen: Date.now()
+      });
+    }
+        playerDataReady = true;
+  });
+
+  ref.onDisconnect().update({
+    online: false,
+    lastSeen: Date.now()
+  });
+
+  // Multiplayer listener
+  db.ref("players").on("value", snap => {
+    const players = snap.val() || {};
+
+    for (let id in players) {
+      if (id === playerId) continue;
+      if (!players[id].online) continue;
+
+      if (!otherPlayers[id]) {
+        createRemotePlayer(id, players[id]);
+      } else {
+        const p = otherPlayers[id];
+        const d = players[id];
+        p.position.set(d.x || 0, d.y || 1, d.z || 0);
+        p.rotation.y = d.rotY || 0;
+
+        if (p.userData.name !== d.name) {
+          updateNameSprite(p, d.name);
+        }
+      }
+    }
+
+    for (let id in otherPlayers) {
+      if (!players[id] || !players[id].online) {
+        scene.remove(otherPlayers[id]);
+        delete otherPlayers[id];
+      }
+    }
+  });
+}
+
+
+        
         // Helper to stretch a cylinder between two points
         function orientLimb(mesh, start, end) {
             mesh.position.copy(start);
