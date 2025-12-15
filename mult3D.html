@@ -296,6 +296,8 @@ const otherPlayers = {};
         const AIR_RESISTANCE = 0.98;  
         const JUMP_BOOST = 1.6;
         const SPRINT_MULTIPLIER = 2.0; // Adjusted multiplier for running
+        const INTERP_SPEED = 0.12; // 0.1–0.2 is good
+
         
         // Combat Variables
         let isPunching = false;
@@ -325,6 +327,8 @@ const otherPlayers = {};
         let isFirstPersonView = true;
         let cameraRotation = { x: 0, y: 0 }; 
 
+
+            
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB); 
@@ -626,23 +630,33 @@ function createRemotePlayer(id, data) {
   mesh.position.set(data.x, data.y, data.z);
   scene.add(mesh);
 
-  // Name label
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  canvas.width = 256;
-  canvas.height = 64;
-  ctx.fillStyle = "white";
-  ctx.font = "30px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(data.name, 128, 40);
+// Name label
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = 256;
+canvas.height = 64;
 
-  const texture = new THREE.CanvasTexture(canvas);
-  const spriteMat = new THREE.SpriteMaterial({ map: texture });
-  const sprite = new THREE.Sprite(spriteMat);
-  sprite.position.set(0, 1.5, 0);
+ctx.fillStyle = "white";
+ctx.font = "30px Arial";
+ctx.textAlign = "center";
+ctx.fillText(data.name, 128, 40);
+
+const texture = new THREE.CanvasTexture(canvas);
+const spriteMat = new THREE.SpriteMaterial({ map: texture });
+const sprite = new THREE.Sprite(spriteMat);
+sprite.position.set(0, 1.5, 0);
+sprite.scale.set(2.5, 0.6, 1);
+
 mesh.add(sprite);
-mesh.userData.nameSprite = sprite; // ✅ REQUIRED
+mesh.userData.nameSprite = sprite;
 otherPlayers[id] = mesh;
+
+mesh.userData.targetPos = new THREE.Vector3(data.x, data.y, data.z);
+mesh.userData.targetRotY = data.rotY || 0;
+
+
+mesh.userData.targetPos = new THREE.Vector3(data.x, data.y, data.z);
+mesh.userData.targetRotY = data.rotY || 0;
 
 }
 
@@ -859,8 +873,18 @@ if (newName && newName !== playerName) {
       } else {
         const p = otherPlayers[id];
         const d = players[id];
-        p.position.set(d.x || 0, d.y || 1, d.z || 0);
-        p.rotation.y = d.rotY || 0;
+        if (!p.userData.targetPos) {
+  p.userData.targetPos = new THREE.Vector3();
+}
+
+p.userData.targetPos.set(
+  d.x || 0,
+  d.y || 1,
+  d.z || 0
+);
+
+p.userData.targetRotY = d.rotY || 0;
+
 
         if (p.userData.name !== d.name) {
           updateNameSprite(p, d.name);
@@ -966,25 +990,47 @@ if (newName && newName !== playerName) {
         }
 
         function animate() {
-            requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
 
-            if (gameState === 'MENU') {
-                updateMenuCamera();
-            } else if (gameState === 'PLAYING') {
+  if (gameState === 'MENU') {
+    updateMenuCamera();
+
+  } else if (gameState === 'PLAYING') {
     updatePlayerMovement();
     updateCamera();
     updateHandAnimation();
     updateCooldownUI();
 
-    if (Date.now() - lastSync > 100) {
-        syncPlayer();
-        lastSync = Date.now();
-    }
+    // --- Smooth remote players ---
+    for (let id in otherPlayers) {
+  const p = otherPlayers[id];
+  if (!p.userData.targetPos) continue;
+
+  const SNAP_DIST = 5;
+
+  if (p.position.distanceTo(p.userData.targetPos) > SNAP_DIST) {
+    p.position.copy(p.userData.targetPos);
+  } else {
+    p.position.lerp(p.userData.targetPos, INTERP_SPEED);
+  }
+
+  if (typeof p.userData.targetRotY === "number") {
+    const dy = p.userData.targetRotY - p.rotation.y;
+    p.rotation.y += dy * INTERP_SPEED;
+  }
 }
 
 
-            renderer.render(scene, camera);
-        }
+    // --- Sync local player to Firebase (rate-limited) ---
+    if (Date.now() - lastSync > 100) {
+      syncPlayer();
+      lastSync = Date.now();
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
