@@ -323,6 +323,20 @@ const otherPlayers = {};
             sprint: 'shift'
         };
         
+        const DEFAULT_SETTINGS = {
+  sensitivity: 0.002,
+  keybinds: {
+    forward: 'w',
+    left: 'a',
+    backward: 's',
+    right: 'd',
+    sprint: 'shift'
+  }
+};
+
+
+
+        
         // View
         let isFirstPersonView = true;
         let cameraRotation = { x: 0, y: 0 }; 
@@ -448,9 +462,11 @@ if (!playerName) {
 
             // UI Listeners
             document.getElementById('sensitivity-slider').addEventListener('input', (e) => {
-                mouseSensitivity = parseFloat(e.target.value);
-                document.getElementById('sens-val').innerText = mouseSensitivity.toFixed(4);
-            });
+    mouseSensitivity = parseFloat(e.target.value);
+    document.getElementById('sens-val').innerText = mouseSensitivity.toFixed(4);
+    saveSettingsToFirebase();
+});
+
 
             animate();
 
@@ -548,51 +564,61 @@ if (auth.currentUser) {
 }
 
 
+        function saveSettingsToFirebase() {
+  if (!playerId) return;
+
+  db.ref("players/" + playerId + "/settings").set({
+    sensitivity: mouseSensitivity,
+    keybinds: keyBindings
+  });
+}
 
 
         
         // --- INPUT HANDLING ---
         
         function onKeyDown(e) {
-            // Remapping Priority
-            if (remappingAction) {
-                const newKey = e.key.toLowerCase();
-                if (newKey === 'p' || newKey === 'escape') {
-                    alert("Cannot bind to that key.");
-                    remappingAction = null;
-                    updateSettingsUI();
-                    return;
-                }
-                keyBindings[remappingAction] = newKey;
-                remappingAction = null;
-                updateSettingsUI();
-                return;
-            }
+    // 🔁 Key remapping has top priority
+    if (remappingAction) {
+        const newKey = e.key.toLowerCase();
 
-            const key = e.key.toLowerCase();
-            keys[key] = true;
+        if (newKey === 'p' || newKey === 'escape') {
+            alert("Cannot bind to that key.");
+            remappingAction = null;
+            updateSettingsUI();
+            return;
+        }
 
-            // Toggle Settings (Only if Playing)
-            if (key === 'p' && gameState === 'PLAYING') {
-                toggleSettings();
-                return;
-            }
+        keyBindings[remappingAction] = newKey;
+        remappingAction = null;
+        updateSettingsUI();
+        saveSettingsToFirebase();
+        return;
+    }
 
-            // Game Logic Inputs
-            if (gameState === 'PLAYING' && !isSettingsOpen) {
-                // JUMP LOGIC with BOOST
-                if (key === ' ') {
-                    if (isGrounded) {
-                        playerVelocity.y = JUMP_FORCE;
-                        isGrounded = false;
-                        
-                        // AIR BOOST: If moving, multiply horizontal velocity
-                        playerVelocity.x *= JUMP_BOOST;
-                        playerVelocity.z *= JUMP_BOOST;
-                    }
-                }
+    const key = e.key.toLowerCase();
+    keys[key] = true;
+
+    // ⚙️ Toggle settings
+    if (key === 'p' && gameState === 'PLAYING') {
+        toggleSettings();
+        return;
+    }
+
+    // 🕹️ Gameplay input
+    if (gameState === 'PLAYING' && !isSettingsOpen) {
+        if (key === ' ') {
+            if (isGrounded) {
+                playerVelocity.y = JUMP_FORCE;
+                isGrounded = false;
+
+                playerVelocity.x *= JUMP_BOOST;
+                playerVelocity.z *= JUMP_BOOST;
             }
         }
+    }
+}
+
 
         function onKeyUp(e) {
             const key = e.key.toLowerCase();
@@ -649,14 +675,12 @@ sprite.scale.set(2.5, 0.6, 1);
 
 mesh.add(sprite);
 mesh.userData.nameSprite = sprite;
+mesh.userData.name = data.name;
 otherPlayers[id] = mesh;
 
 mesh.userData.targetPos = new THREE.Vector3(data.x, data.y, data.z);
 mesh.userData.targetRotY = data.rotY || 0;
 
-
-mesh.userData.targetPos = new THREE.Vector3(data.x, data.y, data.z);
-mesh.userData.targetRotY = data.rotY || 0;
 
 }
 
@@ -834,6 +858,21 @@ if (newName && newName !== playerName) {
         cameraRotation.y = d.rotY;
       }
 
+        // --- LOAD SETTINGS ---
+if (d.settings) {
+  if (typeof d.settings.sensitivity === "number") {
+    mouseSensitivity = d.settings.sensitivity;
+    document.getElementById("sensitivity-slider").value = mouseSensitivity;
+    document.getElementById("sens-val").innerText = mouseSensitivity.toFixed(4);
+  }
+
+  if (d.settings.keybinds) {
+    Object.assign(keyBindings, d.settings.keybinds);
+    updateSettingsUI();
+  }
+}
+
+
       // only mark online
       ref.update({
         online: true,
@@ -843,14 +882,16 @@ if (newName && newName !== playerName) {
     } else {
       // 🆕 NEW PLAYER → create FULL DATA ONCE
       ref.set({
-        name: playerName,
-        x: player.position.x,
-        y: player.position.y,
-        z: player.position.z,
-        rotY: player.rotation.y,
-        online: true,
-        lastSeen: Date.now()
-      });
+  name: playerName,
+  x: player.position.x,
+  y: player.position.y,
+  z: player.position.z,
+  rotY: player.rotation.y,
+  online: true,
+  lastSeen: Date.now(),
+  settings: DEFAULT_SETTINGS
+});
+
     }
         playerDataReady = true;
   });
@@ -901,7 +942,9 @@ p.userData.targetRotY = d.rotY || 0;
   });
 }
 
+        
 
+        
         
         // Helper to stretch a cylinder between two points
         function orientLimb(mesh, start, end) {
