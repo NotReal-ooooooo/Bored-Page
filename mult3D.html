@@ -728,17 +728,21 @@ mesh.userData.targetRotY = data.rotY || 0;
     const data = snap.val();
     if (!data) return;
 
-if (data.online === false) {
-  if (otherPlayers[id]) {
-    scene.remove(otherPlayers[id]);
-    delete otherPlayers[id];
-  }
-  return;
-}
+    // 🔴 OFFLINE → hide only
+    if (data.online === false) {
+      if (otherPlayers[id]) {
+        otherPlayers[id].visible = false;
+      }
+      return;
+    }
 
+    // 🟢 ONLINE → ensure mesh exists
+    if (!otherPlayers[id]) {
+      createRemotePlayer(id, data);
+    }
 
     const p = otherPlayers[id];
-    if (!p) return;
+    p.visible = true;
 
     // Position
     if (
@@ -754,13 +758,14 @@ if (data.online === false) {
       p.userData.targetRotY = data.rotY;
     }
 
-    // Name update
+    // Name
     if (data.name && p.userData.name !== data.name) {
       updateNameSprite(p, data.name);
       p.userData.name = data.name;
     }
   });
 }
+
 
 
     
@@ -982,15 +987,15 @@ if (d.settings) {
   });
 
   // Multiplayer listener
-  const playersRef = db.ref("players");
+const playersRef = db.ref("players");
 
-// PLAYER JOIN
+// PLAYER JOIN (create mesh ONCE, no online check)
 playersRef.on("child_added", snap => {
   const id = snap.key;
   const data = snap.val();
 
   if (id === playerId) return;
-  if (!data || data.online === false) return;
+  if (!data) return;
 
   if (!otherPlayers[id]) {
     createRemotePlayer(id, data);
@@ -999,17 +1004,6 @@ playersRef.on("child_added", snap => {
 });
 
 
-
-
-// PLAYER LEAVE
-playersRef.on("child_removed", snap => {
-  const id = snap.key;
-
-  if (otherPlayers[id]) {
-    scene.remove(otherPlayers[id]);
-    delete otherPlayers[id];
-  }
-});
      
 }
         
