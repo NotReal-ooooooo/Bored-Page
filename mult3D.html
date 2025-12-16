@@ -322,6 +322,17 @@ const otherPlayers = {};
             right: 'd',
             sprint: 'shift'
         };
+
+
+        
+        // lets
+        let lastSentPos = new THREE.Vector3();
+let lastSentRotY = 0;
+
+const MOVE_EPSILON = 0.02;   // distance threshold
+const ROT_EPSILON  = 0.02;   // rotation threshold (radians)
+
+
         
         const DEFAULT_SETTINGS = {
   sensitivity: 0.002,
@@ -495,6 +506,15 @@ function updateNameSprite(playerMesh, name) {
 
 
 
+        // move enough?
+        function playerMovedEnough() {
+  const posDelta = player.position.distanceTo(lastSentPos);
+  const rotDelta = Math.abs(player.rotation.y - lastSentRotY);
+
+  return posDelta > MOVE_EPSILON || rotDelta > ROT_EPSILON;
+}
+
+
 
 
         // --- MENU LOGIC ---
@@ -551,17 +571,22 @@ if (auth.currentUser) {
 
 
         function syncPlayer() {
-  if (!playerId || !playerDataReady) return;
+  if (!playerMovedEnough()) return;
 
-  db.ref("players/" + playerId).update({
-    name: playerName,
+  const ref = db.ref("players/" + playerId);
+
+  ref.update({
     x: player.position.x,
     y: player.position.y,
     z: player.position.z,
-    rotY: player.rotation.y,
-    lastSeen: Date.now()
+    rotY: player.rotation.y
   });
+
+  // Save last sent values
+  lastSentPos.copy(player.position);
+  lastSentRotY = player.rotation.y;
 }
+
 
 
         function saveSettingsToFirebase() {
@@ -653,9 +678,16 @@ function createRemotePlayer(id, data) {
   const geo = new THREE.BoxGeometry(1, 2, 1);
   const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(data.x, data.y, data.z);
+  mesh.rotation.order = "YXZ";
+  mesh.position.set(
+  data.x || 0,
+  data.y || 1,
+  data.z || 0
+);
+
   scene.add(mesh);
 
+        
 // Name label
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
@@ -678,13 +710,48 @@ mesh.userData.nameSprite = sprite;
 mesh.userData.name = data.name;
 otherPlayers[id] = mesh;
 
-mesh.userData.targetPos = new THREE.Vector3(data.x, data.y, data.z);
-mesh.userData.targetRotY = data.rotY || 0;
+mesh.userData.targetPos = new THREE.Vector3(
+  data.x || 0,
+  data.y || 1,
+  data.z || 0
+);
 
+mesh.userData.targetRotY = data.rotY || 0;
 
 }
 
 
+     function attachPlayerListener(id) {
+  const ref = db.ref("players/" + id);
+
+  ref.on("value", snap => {
+    const data = snap.val();
+    if (!data || data.online === false) return;
+
+    const p = otherPlayers[id];
+    if (!p) return;
+
+    // Position
+    if (
+      typeof data.x === "number" &&
+      typeof data.y === "number" &&
+      typeof data.z === "number"
+    ) {
+      p.userData.targetPos.set(data.x, data.y, data.z);
+    }
+
+    // Rotation
+    if (typeof data.rotY === "number") {
+      p.userData.targetRotY = data.rotY;
+    }
+
+    // Name update
+    if (data.name && p.userData.name !== data.name) {
+      updateNameSprite(p, data.name);
+      p.userData.name = data.name;
+    }
+  });
+}
 
 
     
@@ -858,6 +925,10 @@ if (newName && newName !== playerName) {
         cameraRotation.y = d.rotY;
       }
 
+        lastSentPos.copy(player.position);
+lastSentRotY = player.rotation.y;
+
+
         // --- LOAD SETTINGS ---
 if (d.settings) {
   if (typeof d.settings.sensitivity === "number") {
@@ -902,48 +973,71 @@ if (d.settings) {
   });
 
   // Multiplayer listener
-  db.ref("players").on("value", snap => {
-    const players = snap.val() || {};
+  const playersRef = db.ref("players");
 
-    for (let id in players) {
-      if (id === playerId) continue;
-      if (!players[id].online) continue;
+// PLAYER JOIN
+playersRef.on("child_added", snap => {
+  const id = snap.key;
+  const data = snap.val();
 
-      if (!otherPlayers[id]) {
-        createRemotePlayer(id, players[id]);
-      } else {
-        const p = otherPlayers[id];
-        const d = players[id];
-        if (!p.userData.targetPos) {
-  p.userData.targetPos = new THREE.Vector3();
+  if (id === playerId) return;
+  if (!data || data.online === false) return;
+
+  if (!otherPlayers[id]) {
+    createRemotePlayer(id, data);
+    attachPlayerListener(id);
+  }
+});
+
+
+// PLAYER MOVE / UPDATE
+playersRef.on("child_changed", snap => {
+  const id = snap.key;
+  const data = snap.val();
+
+  // 🔴 TOP of child_changed
+  if (id === playerId) return;
+  if (!data) return;
+  if (data.online === false) return;
+
+  const p = otherPlayers[id];
+  if (!p) return;
+
+  // ensure target exists
+  if (!p.userData.targetPos) {
+    p.userData.targetPos = new THREE.Vector3();
+  }
+
+  if (
+    typeof data.x === "number" &&
+    typeof data.y === "number" &&
+    typeof data.z === "number"
+  ) {
+    p.userData.targetPos.set(data.x, data.y, data.z);
+  }
+
+  if (typeof data.rotY === "number") {
+    p.userData.targetRotY = data.rotY;
+  }
+
+  if (p.userData.name !== data.name) {
+    updateNameSprite(p, data.name);
+    p.userData.name = data.name;
+  }
+});
+
+
+// PLAYER LEAVE
+playersRef.on("child_removed", snap => {
+  const id = snap.key;
+
+  if (otherPlayers[id]) {
+    scene.remove(otherPlayers[id]);
+    delete otherPlayers[id];
+  }
+});
+     
 }
-
-p.userData.targetPos.set(
-  d.x || 0,
-  d.y || 1,
-  d.z || 0
-);
-
-p.userData.targetRotY = d.rotY || 0;
-
-
-        if (p.userData.name !== d.name) {
-          updateNameSprite(p, d.name);
-        }
-      }
-    }
-
-    for (let id in otherPlayers) {
-      if (!players[id] || !players[id].online) {
-        scene.remove(otherPlayers[id]);
-        delete otherPlayers[id];
-      }
-    }
-  });
-}
-
-        
-
         
         
         // Helper to stretch a cylinder between two points
@@ -1058,14 +1152,19 @@ p.userData.targetRotY = d.rotY || 0;
   }
 
   if (typeof p.userData.targetRotY === "number") {
-    const dy = p.userData.targetRotY - p.rotation.y;
-    p.rotation.y += dy * INTERP_SPEED;
-  }
+  let dy = p.userData.targetRotY - p.rotation.y;
+
+  // wrap angle to [-PI, PI] so it turns the short way
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+
+  p.rotation.y += dy * INTERP_SPEED;
+}
+
 }
 
 
     // --- Sync local player to Firebase (rate-limited) ---
-    if (Date.now() - lastSync > 100) {
+    if (Date.now() - lastSync > 350) {
       syncPlayer();
       lastSync = Date.now();
     }
