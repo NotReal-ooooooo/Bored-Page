@@ -726,7 +726,16 @@ mesh.userData.targetRotY = data.rotY || 0;
 
   ref.on("value", snap => {
     const data = snap.val();
-    if (!data || data.online === false) return;
+    if (!data) return;
+
+if (data.online === false) {
+  if (otherPlayers[id]) {
+    scene.remove(otherPlayers[id]);
+    delete otherPlayers[id];
+  }
+  return;
+}
+
 
     const p = otherPlayers[id];
     if (!p) return;
@@ -990,41 +999,6 @@ playersRef.on("child_added", snap => {
 });
 
 
-// PLAYER MOVE / UPDATE
-playersRef.on("child_changed", snap => {
-  const id = snap.key;
-  const data = snap.val();
-
-  // 🔴 TOP of child_changed
-  if (id === playerId) return;
-  if (!data) return;
-  if (data.online === false) return;
-
-  const p = otherPlayers[id];
-  if (!p) return;
-
-  // ensure target exists
-  if (!p.userData.targetPos) {
-    p.userData.targetPos = new THREE.Vector3();
-  }
-
-  if (
-    typeof data.x === "number" &&
-    typeof data.y === "number" &&
-    typeof data.z === "number"
-  ) {
-    p.userData.targetPos.set(data.x, data.y, data.z);
-  }
-
-  if (typeof data.rotY === "number") {
-    p.userData.targetRotY = data.rotY;
-  }
-
-  if (p.userData.name !== data.name) {
-    updateNameSprite(p, data.name);
-    p.userData.name = data.name;
-  }
-});
 
 
 // PLAYER LEAVE
