@@ -571,21 +571,20 @@ if (auth.currentUser) {
 
 
         function syncPlayer() {
+  if (!playerDataReady) return; // ⛔ wait until Firebase loads
   if (!playerMovedEnough()) return;
 
-  const ref = db.ref("players/" + playerId);
-
-  ref.update({
+  db.ref("players/" + playerId).update({
     x: player.position.x,
     y: player.position.y,
     z: player.position.z,
     rotY: player.rotation.y
   });
 
-  // Save last sent values
   lastSentPos.copy(player.position);
   lastSentRotY = player.rotation.y;
 }
+
 
 
 
@@ -724,43 +723,34 @@ mesh.userData.targetRotY = data.rotY || 0;
      function attachPlayerListener(id) {
   const ref = db.ref("players/" + id);
 
-  ref.on("value", snap => {
-    const data = snap.val();
-    if (!data) return;
-
-if (data.online === false) {
-  if (otherPlayers[id]) {
-    scene.remove(otherPlayers[id]);
-    delete otherPlayers[id];
-  }
-  return;
-}
-
+  ref.on("child_changed", snap => {
+    const key = snap.key;
+    const val = snap.val();
 
     const p = otherPlayers[id];
-    if (!p) return;
+    if (!p || !p.userData.targetPos) return;
 
-    // Position
-    if (
-      typeof data.x === "number" &&
-      typeof data.y === "number" &&
-      typeof data.z === "number"
-    ) {
-      p.userData.targetPos.set(data.x, data.y, data.z);
-    }
+    switch (key) {
+      case "x": p.userData.targetPos.x = val; break;
+      case "y": p.userData.targetPos.y = val; break;
+      case "z": p.userData.targetPos.z = val; break;
+      case "rotY": p.userData.targetRotY = val; break;
 
-    // Rotation
-    if (typeof data.rotY === "number") {
-      p.userData.targetRotY = data.rotY;
-    }
+      case "name":
+        updateNameSprite(p, val);
+        p.userData.name = val;
+        break;
 
-    // Name update
-    if (data.name && p.userData.name !== data.name) {
-      updateNameSprite(p, data.name);
-      p.userData.name = data.name;
+      case "online":
+  p.visible = val === true;
+  break;
+
+
     }
   });
 }
+
+
 
 
     
@@ -982,15 +972,18 @@ if (d.settings) {
   });
 
   // Multiplayer listener
-  const playersRef = db.ref("players");
+const playersRef = db.ref("players");
 
-// PLAYER JOIN
+// PLAYER JOIN (create mesh ONCE, no online check)
 playersRef.on("child_added", snap => {
   const id = snap.key;
   const data = snap.val();
 
   if (id === playerId) return;
-  if (!data || data.online === false) return;
+  if (!data) return;
+
+  // ⛔ skip offline players
+  if (data.online !== true) return;
 
   if (!otherPlayers[id]) {
     createRemotePlayer(id, data);
@@ -998,10 +991,27 @@ playersRef.on("child_added", snap => {
   }
 });
 
+            playersRef.on("child_changed", snap => {
+  const id = snap.key;
+  const data = snap.val();
+
+  if (id === playerId) return;
+  if (!data) return;
+
+  // Player came online → create now
+  if (data.online === true && !otherPlayers[id]) {
+    createRemotePlayer(id, data);
+    attachPlayerListener(id);
+  }
+
+  // Player went offline → hide
+  if (data.online === false && otherPlayers[id]) {
+    otherPlayers[id].visible = false;
+  }
+});
 
 
-
-// PLAYER LEAVE
+// PLAYER LEAVE (clean up)
 playersRef.on("child_removed", snap => {
   const id = snap.key;
 
@@ -1010,10 +1020,13 @@ playersRef.on("child_removed", snap => {
     delete otherPlayers[id];
   }
 });
+
      
 }
         
         
+ 
+         
         // Helper to stretch a cylinder between two points
         function orientLimb(mesh, start, end) {
             mesh.position.copy(start);
@@ -1028,6 +1041,8 @@ playersRef.on("child_removed", snap => {
         }
 
         function updatePlayerMovement() {
+              if (!playerDataReady) return; // ⛔ stop gravity & movement
+        
             if (isSettingsOpen) return;
 
             // Determine Acceleration based on Ground/Air and Sprint status
