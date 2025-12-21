@@ -294,7 +294,7 @@ const otherPlayers = {};
         const AIR_ACCELERATION = 0.01; 
         const GROUND_FRICTION = 0.90; 
         const AIR_RESISTANCE = 0.98;  
-        const JUMP_BOOST = 1.6;
+        const JUMP_BOOST = 1.05;
         const SPRINT_MULTIPLIER = 2.0; // Adjusted multiplier for running
         const INTERP_SPEED = 0.12; // 0.1–0.2 is good
 
@@ -779,6 +779,8 @@ if (newName && newName !== playerName) {
     });
   }
 }
+                
+    saveSettingsToFirebase();
 
                 if (isFirstPersonView) {
                     document.body.requestPointerLock();
@@ -959,7 +961,7 @@ if (d.settings) {
   rotY: player.rotation.y,
   online: true,
   lastSeen: Date.now(),
-  settings: DEFAULT_SETTINGS
+  settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS))
 });
 
     }
@@ -999,10 +1001,15 @@ playersRef.on("child_added", snap => {
   if (!data) return;
 
   // Player came online → create now
-  if (data.online === true && !otherPlayers[id]) {
+if (data.online === true) {
+  if (!otherPlayers[id]) {
     createRemotePlayer(id, data);
     attachPlayerListener(id);
+  } else {
+    otherPlayers[id].visible = true;
   }
+}
+
 
   // Player went offline → hide
   if (data.online === false && otherPlayers[id]) {
