@@ -298,6 +298,10 @@ const otherPlayers = {};
         const SPRINT_MULTIPLIER = 2.0; // Adjusted multiplier for running
         const INTERP_SPEED = 0.12; // 0.1–0.2 is good
 
+        // --- TREES ---
+const trees = {};
+let treesLoaded = false;
+
         
         // Combat Variables
         let isPunching = false;
@@ -485,6 +489,31 @@ if (!playerName) {
 
 
         }
+
+        function createTree(id, data) {
+  // Trunk
+  const trunkGeo = new THREE.CylinderGeometry(0.4, 0.5, 3, 8);
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B5A2B });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+
+  // Leaves
+  const leavesGeo = new THREE.SphereGeometry(1.8, 12, 12);
+  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2E8B57 });
+  const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+  leaves.position.y = 2.5;
+
+  const tree = new THREE.Group();
+  tree.add(trunk);
+  tree.add(leaves);
+
+  tree.position.set(data.x, data.y, data.z);
+  tree.castShadow = true;
+  tree.receiveShadow = true;
+
+  scene.add(tree);
+  trees[id] = tree;
+}
+
 
 function updateNameSprite(playerMesh, name) {
   playerMesh.userData.name = name;
@@ -928,6 +957,40 @@ if (newName && newName !== playerName) {
 
         lastSentPos.copy(player.position);
 lastSentRotY = player.rotation.y;
+
+        // --- LOAD TREES (WORLD OBJECTS) ---
+const treesRef = db.ref("trees");
+
+// Tree added
+treesRef.on("child_added", snap => {
+  const id = snap.key;
+  const data = snap.val();
+
+  if (!trees[id]) {
+    createTree(id, data);
+  }
+});
+
+// Tree moved/edited
+treesRef.on("child_changed", snap => {
+  const id = snap.key;
+  const data = snap.val();
+
+  const tree = trees[id];
+  if (!tree) return;
+
+  tree.position.set(data.x, data.y, data.z);
+});
+
+// Tree removed
+treesRef.on("child_removed", snap => {
+  const id = snap.key;
+
+  if (trees[id]) {
+    scene.remove(trees[id]);
+    delete trees[id];
+  }
+});
 
 
         // --- LOAD SETTINGS ---
