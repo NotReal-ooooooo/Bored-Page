@@ -201,6 +201,11 @@
             <input id="name-input" type="text" style="width:100%; padding:6px;">
         </div>
 
+        <div class="setting-row">
+          <label>Face</label>
+          <div id="face-display">face 1</div>
+        </div>
+
         
         <div class="setting-row">
             <label>Mouse Sensitivity: <span id="sens-val">0.002</span></label>
@@ -317,6 +322,7 @@ let treesLoaded = false;
         let isSettingsOpen = false;
         let mouseSensitivity = 0.002;
         let remappingAction = null; 
+        let playerFace = "face_1.png";
 
         // Default Bindings
         const keyBindings = {
@@ -620,11 +626,15 @@ if (auth.currentUser) {
         function saveSettingsToFirebase() {
   if (!playerId) return;
 
-  db.ref("players/" + playerId + "/settings").set({
-    sensitivity: mouseSensitivity,
-    keybinds: keyBindings
+  db.ref("players/" + playerId).update({
+    face: playerFace,
+    settings: {
+      sensitivity: mouseSensitivity,
+      keybinds: keyBindings
+    }
   });
 }
+
 
 
         
@@ -736,6 +746,24 @@ sprite.scale.set(2.5, 0.6, 1);
 mesh.add(sprite);
 mesh.userData.nameSprite = sprite;
 mesh.userData.name = data.name;
+
+        // ================= FACE SPRITE =================
+const faceTexture = new THREE.TextureLoader().load(
+  data.face || "face_1.png"
+);
+
+const faceMat = new THREE.SpriteMaterial({
+  map: faceTexture,
+  transparent: true
+});
+
+const faceSprite = new THREE.Sprite(faceMat);
+faceSprite.position.set(0, 2.2, 0);   // above name
+faceSprite.scale.set(0.6, 0.6, 1);
+
+mesh.add(faceSprite);
+mesh.userData.faceSprite = faceSprite;
+    // =======================================================
 otherPlayers[id] = mesh;
 
 mesh.userData.targetPos = new THREE.Vector3(
@@ -764,7 +792,15 @@ mesh.userData.targetRotY = data.rotY || 0;
       case "y": p.userData.targetPos.y = val; break;
       case "z": p.userData.targetPos.z = val; break;
       case "rotY": p.userData.targetRotY = val; break;
+      case "face":
+  if (p.userData.faceSprite) {
+    p.userData.faceSprite.material.map =
+      new THREE.TextureLoader().load(val);
+    p.userData.faceSprite.material.needsUpdate = true;
+  }
+  break;
 
+            
       case "name":
         updateNameSprite(p, val);
         p.userData.name = val;
@@ -804,7 +840,8 @@ if (newName && newName !== playerName) {
 
   if (playerId) {
     db.ref("players/" + playerId).update({
-      name: playerName
+      name: playerName,
+      face: playerFace
     });
   }
 }
@@ -946,6 +983,13 @@ if (newName && newName !== playerName) {
       // ✅ EXISTING PLAYER → restore position
       const d = snap.val();
 
+        // --- LOAD FACE ---
+if (d.face) {
+  playerFace = d.face;
+  document.getElementById("face-display").innerText = "face 1";
+}
+
+
       if (typeof d.x === "number") {
         player.position.set(d.x, d.y, d.z);
       }
@@ -1018,6 +1062,7 @@ if (d.settings) {
       // 🆕 NEW PLAYER → create FULL DATA ONCE
       ref.set({
   name: playerName,
+  face: playerFace,
   x: player.position.x,
   y: player.position.y,
   z: player.position.z,
@@ -1026,6 +1071,7 @@ if (d.settings) {
   lastSeen: Date.now(),
   settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS))
 });
+
 
     }
         playerDataReady = true;
