@@ -19,4 +19,5 @@
     width: 60px;
     height: 60px;
     background: cyan;
+    z-index: 2;      
   }
