@@ -1,0 +1,11 @@
+<button onclick="send()">Send +1</button>
+<script>
+async function send() {
+  const r = await fetch("https://server-tb-bs--NotReal-ooooooo.replit.app/data", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({score: 1})
+  });
+  alert(await r.text());
+}
+</script>
