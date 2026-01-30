@@ -15,7 +15,7 @@
       z-index: 1;     
     }
 
-      .cube {
+      #cube {
     width: 60px;
     height: 60px;
     background: cyan;
