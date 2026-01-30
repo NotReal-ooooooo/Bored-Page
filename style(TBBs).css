@@ -5,13 +5,12 @@
       overflow: hidden;
     }
 
-    #thingOnTop {
-      position: fixed;
+    #BG1 {
+      position: absolute;
       top: 0px;
       right: 0px;
       width: 100vw;
-      height: 50px;
-      background-color: #000000;
-      opacity: 0.8;
-      z-index: 20;     
+      height: 100vw;
+      background-color: #46f7fa;
+      z-index: 1;     
     }
