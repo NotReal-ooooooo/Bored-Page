@@ -2,20 +2,18 @@
 <html>
 <body>
   <h2>Server Test</h2>
-  <button onclick="send()">Add Score</button>
-  <p id="out"></p>
+  <button onclick="send()">Send</button>
+<script>
+async function send() {
+  const r = await fetch("https://server-tb-bs--notreal-ooooooo.replit.app/data", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({score: 5})
+  });
 
-  <script>
-    async function send() {
-      const r = await fetch("https://server-tb-bs--NotReal-ooooooo.replit.app/data", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ score: 1 })
-      });
+  console.log(await r.text());
+}
+</script>
 
-      const d = await r.json();
-      document.getElementById("out").innerText = "Score = " + d.score;
-    }
-  </script>
 </body>
 </html>
