@@ -18,6 +18,8 @@
       #cube {
     width: 60px;
     height: 60px;
+    top: 50vw;
+    right: 50vh;
     background-color: #ffffff;
     z-index: 2;      
   }
