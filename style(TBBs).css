@@ -37,16 +37,16 @@
 
 /* left puff */
 #cloud::before {
-  width: 90px;
-  height: 90px;
+  width: 30px;
+  height: 30px;
   top: -14px;
   left: 8px;
 }
 
 /* right puff */
 #cloud::after {
-  width: 102px;
-  height: 102px;
+  width: 34px;
+  height: 34px;
   top: -18px;
   right: 6px;
 }
