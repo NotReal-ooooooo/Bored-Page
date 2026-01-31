@@ -17,8 +17,8 @@
 
    #cloud {
   position: absolute;
-  width: 210px;
-  height: 78px;
+  width: 70px;
+  height: 26px;
   top: 50vh;
   left: 50vw;
   transform: translate(-50%, -50%);
