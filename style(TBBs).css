@@ -17,8 +17,8 @@
 
    #cloud {
   position: absolute;
-  width: 70px;
-  height: 26px;
+  width: 210px;
+  height: 78px;
   top: 50vh;
   left: 50vw;
   transform: translate(-50%, -50%);
@@ -37,16 +37,16 @@
 
 /* left puff */
 #cloud::before {
-  width: 30px;
-  height: 30px;
+  width: 90px;
+  height: 90px;
   top: -14px;
   left: 8px;
 }
 
 /* right puff */
 #cloud::after {
-  width: 34px;
-  height: 34px;
+  width: 102px;
+  height: 102px;
   top: -18px;
   right: 6px;
 }
