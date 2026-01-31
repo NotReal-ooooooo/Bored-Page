@@ -15,17 +15,16 @@
       z-index: 1;     
     }
 
-   #cloud {
+#cloud {
   position: absolute;
-  width: 70px;
-  height: 26px;
+  width: 210px;
+  height: 78px;
   top: 50vh;
   left: 50vw;
-  transform: translate(-50%, -50%) scale(3);
+  transform: translate(-50%, -50%);
   background: white;
-  border-radius: 20px;
+  border-radius: 60px;
   z-index: 2;
-  transform-origin: top left;
 }
 
 #cloud::before,
@@ -38,16 +37,16 @@
 
 /* left puff */
 #cloud::before {
-  width: 30px;
-  height: 30px;
-  top: -14px;
-  left: 8px;
+  width: 90px;
+  height: 90px;
+  top: -42px;   /* -14 × 3 */
+  left: 24px;   /* 8 × 3 */
 }
 
 /* right puff */
 #cloud::after {
-  width: 34px;
-  height: 34px;
-  top: -18px;
-  right: 6px;
+  width: 102px;
+  height: 102px;
+  top: -54px;   /* -18 × 3 */
+  right: 18px;  /* 6 × 3 */
 }
