@@ -21,10 +21,11 @@
   height: 26px;
   top: 50vh;
   left: 50vw;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(3);
   background: white;
   border-radius: 20px;
   z-index: 2;
+  transform-origin: top left;
 }
 
 #cloud::before,
