@@ -19,6 +19,9 @@
   position: absolute;
   width: 70px;
   height: 26px;
+  top: 50vh;
+  left: 50vw;
+  transform: translate(-50%, -50%);
   background: white;
   border-radius: 20px;
 }
