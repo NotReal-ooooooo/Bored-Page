@@ -15,13 +15,34 @@
       z-index: 1;     
     }
 
-      #cube {
-    position: absolute;
-    width: 60px;
-    height: 60px;
-    top: 50vh;
-    left: 50vw;
-    transform: translate(-50%, -50%);
-    background-color: #ffffff;
-    z-index: 2;      
-  }
+   #cloud {
+  position: absolute;
+  width: 70px;
+  height: 26px;
+  background: white;
+  border-radius: 20px;
+}
+
+#cloud::before,
+#cloud::after {
+  content: "";
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+}
+
+/* left puff */
+#cloud::before {
+  width: 30px;
+  height: 30px;
+  top: -14px;
+  left: 8px;
+}
+
+/* right puff */
+#cloud::after {
+  width: 34px;
+  height: 34px;
+  top: -18px;
+  right: 6px;
+}
