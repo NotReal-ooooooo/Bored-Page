@@ -24,6 +24,7 @@
   transform: translate(-50%, -50%);
   background: white;
   border-radius: 20px;
+  z-index: 2;
 }
 
 #cloud::before,
