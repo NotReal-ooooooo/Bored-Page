@@ -16,6 +16,7 @@
     }
 
       #cube {
+    position: absolute;
     width: 60px;
     height: 60px;
     top: 50vw;
