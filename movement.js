@@ -10,7 +10,9 @@
       const y = Math.sin((time - start) * 0.002 * speed) * amplitude;
 
       cloud.style.transform = `translateY(${y}px)`;
-           beanimg.style.transform = `translateY(${y}px)`;
+      beanimg.style.transform =
+  `translate(-50%, -50%) translateY(${y}px)`;
+
 
       requestAnimationFrame(animate);
     }
