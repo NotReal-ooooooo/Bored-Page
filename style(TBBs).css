@@ -50,3 +50,9 @@
   top: -54px;   /* -18 × 3 */
   right: 18px;  /* 6 × 3 */
 }
+
+#beanimg {
+  position: absolute; /* or relative, fixed */
+  top: 50vh;
+  right: 50vw;
+}
