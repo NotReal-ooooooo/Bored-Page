@@ -53,7 +53,8 @@
 
 #beanimg {
   position: absolute; /* or relative, fixed */
-  top: 50vh;
-  right: 50vw;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 2;
 }
