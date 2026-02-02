@@ -55,4 +55,5 @@
   position: absolute; /* or relative, fixed */
   top: 50vh;
   right: 50vw;
+  z-index: 2;
 }
