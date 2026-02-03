@@ -5,7 +5,7 @@
       overflow: hidden;
     }
 
-    #play {
+    .play {
   font-family: 'Luckiest Guy', cursive;
   font-size: 32px;
   width: 30px;
