@@ -5,6 +5,17 @@
       overflow: hidden;
     }
 
+    #playBtn {
+  font-family: 'Luckiest Guy', cursive;
+  font-size: 32px;
+  width: 30px;
+  height: 10px;
+  top: 50vh;
+  left: 20px;
+  text-align: center;
+}
+
+
     #BG1 {
       position: absolute;
       top: 0px;
