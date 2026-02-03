@@ -9,10 +9,13 @@
   position: absolute;
   font-family: 'Luckiest Guy', cursive;
   font-size: 32px;
-  width: 30px;
-  height: 10px;
+  width: 90px;
+  height: 30px;
   top: 50vh;
   left: 20px;
+  display: flex;
+  align-items: center;      /* vertical center */
+  justify-content: center;
   text-align: center;
   z-index: 2;
 }
