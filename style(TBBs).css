@@ -20,8 +20,7 @@
   align-items: center;
   justify-content: center;
 
-  line-height: 1;          /* IMPORTANT */
-  transform: translateY(-10px); /* tiny visual correction */
+
 
   z-index: 2;
 }
