@@ -25,6 +25,11 @@
   z-index: 2;
 }
 
+.play span {
+  position: relative;
+  top: 2px;   /* 👈 adjust 1–3px */
+}
+
 
     #BG1 {
       position: absolute;
