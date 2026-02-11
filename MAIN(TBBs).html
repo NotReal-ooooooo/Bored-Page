@@ -64,10 +64,13 @@ function disableShadows(object) {
 
 const textureLoader = new THREE.TextureLoader();
 const rustTexture = textureLoader.load("rust.jpg");
-
+rustTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+rustTexture.encoding = THREE.sRGBEncoding;
+renderer.outputEncoding = THREE.sRGBEncoding;
+    
 rustTexture.wrapS = THREE.RepeatWrapping;
 rustTexture.wrapT = THREE.RepeatWrapping;
-rustTexture.repeat.set(1, 1);
+rustTexture.repeat.set(2, 2);
 
     
 // ================= LIGHT =================
