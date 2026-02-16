@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Road + Bases + Control Panel</title>
+<title>level TBBs(test)</title>
 
 <style>
     body {
@@ -118,35 +118,68 @@ const baseDepth = 12;
 const blueEndX = roadLength / 2 + baseDepth / 2;
 const redEndX  = -roadLength / 2 - baseDepth / 2;
 
+// ================ BASE CREATION ===================
 
-
-function createBase(x, color, name) {
+function createBaseCannon(x, color, name) {
     const base = new THREE.Group();
     base.name = name;
 
-    // BASE FLOOR (15 × 1 × 12)
+
     const floor = new THREE.Mesh(
-        new THREE.BoxGeometry(15, 1, 12),
+        new THREE.BoxGeometry(15, 0.9, 12),
         new THREE.MeshStandardMaterial({ color: 0x333333 })
     );
-    floor.position.set(0, 0.5, 0);
+    floor.position.set(0, 0, 0);
     floor.receiveShadow = true;
     base.add(floor);
 
-    // BASE BODY (13 tall, 10 × 10)
     const body = new THREE.Mesh(
         new THREE.BoxGeometry(8, 10, 7),
         new THREE.MeshStandardMaterial({ color })
     );
     body.position.set(
     0,
-    4,
+    3.4,
     0
 );
 
+    const outerS = new THREE.Mesh(
+        new THREE.BoxGeometry(8, 0.2, 7),
+        new THREE.MeshStandardMaterial({ color: 0x9aa0a6 })
+    );
+    outerS.position.set(0, body.position.y + 5 + 0.1, 0);
+    base.add(outerS);
 
-    body.castShadow = true;
+    // Create geometry + material
+    const geometry = new THREE.BoxGeometry(0.5, 4, 0.5);
+    const material = new THREE.MeshStandardMaterial({ color: 0x9aa0a6 });
+
+// Create original mesh (dr)
+    const dr = new THREE.Mesh(geometry, material);
+    
+
+// Duplicate it (dl)
+    const dl = dr.clone();
+const halfBaseWidth = 8 / 2;
+const halfPillarWidth = 0.5 / 2;
+
+const frontX = x > 0
+    ? -(halfBaseWidth + halfPillarWidth)
+    :  (halfBaseWidth + halfPillarWidth);
+
+
+
+dr.position.set(frontX, 2.45, 1.2);
+dl.position.set(frontX, 2.45, -1.2);
+
     base.add(body);
+
+    base.add(dl);
+    base.add(dr);
+
+    
+    body.castShadow = true;
+
 
     // Position base so floor touches road
     base.position.set(x, 0, 0);
@@ -157,8 +190,8 @@ function createBase(x, color, name) {
     return base;
 }
 
-const enemy_base_cannon  = createBase(redEndX, 0xff0000, "enemy_base_cannon");
-const player_base_cannon = createBase(blueEndX, 0x0000ff, "player_base_cannon");
+const enemy_base_cannon  = createBaseCannon(redEndX, 0xff0000, "enemy_base_cannon");
+const player_base_cannon = createBaseCannon(blueEndX, 0x0000ff, "player_base_cannon");
 
 
 // ================= EXPLOSION =================
