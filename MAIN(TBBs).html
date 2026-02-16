@@ -134,7 +134,7 @@ function createBaseCannon(x, color, name) {
     base.add(floor);
 
     const body = new THREE.Mesh(
-        new THREE.BoxGeometry(8, 10, 7),
+        new THREE.BoxGeometry(7, 7, 7),
         new THREE.MeshStandardMaterial({ color })
     );
     body.position.set(
@@ -160,7 +160,7 @@ function createBaseCannon(x, color, name) {
 
 // Duplicate it (dl)
     const dl = dr.clone();
-const halfBaseWidth = 8 / 2;
+const halfBaseWidth = 7 / 2;
 const halfPillarWidth = 0.5 / 2;
 
 const frontX = x > 0
