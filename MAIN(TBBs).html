@@ -1,1 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>level TBBs(test)</title>
+
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #87CEEB;
+        font-family: sans-serif;
+        user-select: none;
+    }
+    canvas { display: block; }
+
+    #controlPanel {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        z-index: 10;
+    }
+</style>
+</head>
+<body>
+
+<div id="controlPanel">⚙ Control Panel</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+const debris = [];
+// ================= CONFIG =================
+const CamLimit = 10;
+const MOVEMENT_SPEED = 0.3;
+
+// ================= SCENE =================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 30, 140);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 4, 12);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+function disableShadows(object) {
+    object.traverse(child => {
+        if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+        }
+    });
+}
+
+const textureLoader = new THREE.TextureLoader();
+const rustTexture = textureLoader.load("rust.jpg");
+rustTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+rustTexture.encoding = THREE.sRGBEncoding;
+    
+rustTexture.wrapS = THREE.RepeatWrapping;
+rustTexture.wrapT = THREE.RepeatWrapping;
+rustTexture.repeat.set(2, 2);
+
+    
+// ================= LIGHT =================
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(30, 40, 20);
+sun.castShadow = true;
+scene.add(sun);
+
+// ================= FLOOR =================
+const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(500, 300),
+    new THREE.MeshStandardMaterial({ color: 0x228B22 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -0.1;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ================= ROAD =================
+const roadDepth = 8;
+const roadLength = CamLimit * 2;
+
+const road = new THREE.Mesh(
+    new THREE.BoxGeometry(roadLength, 0.5, roadDepth),
+    new THREE.MeshStandardMaterial({ color: 0x444444 })
+);
+road.receiveShadow = true;
+scene.add(road);
+
+// Curbs
+const curbGeo = new THREE.BoxGeometry(roadLength, 0.7, 1);
+const curbMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+
+const curbBack = new THREE.Mesh(curbGeo, curbMat);
+curbBack.position.set(0, 0.1, -roadDepth / 2 - 0.5);
+scene.add(curbBack);
+
+const curbFront = new THREE.Mesh(curbGeo, curbMat);
+curbFront.position.set(0, 0.1, roadDepth / 2 + 0.5);
+scene.add(curbFront);
+
+// ================= BASE POSITIONS =================
+const baseDepth = 12;
+const blueEndX = roadLength / 2 + baseDepth / 2;
+const redEndX  = -roadLength / 2 - baseDepth / 2;
+
+// ================ BASE CREATION ===================
+
+function createBaseCannon(x, color, name) {
+    const base = new THREE.Group();
+    base.name = name;
+
+
+    const floor = new THREE.Mesh(
+        new THREE.BoxGeometry(15, 0.9, 12),
+        new THREE.MeshStandardMaterial({ color: 0x333333 })
+    );
+    floor.position.set(0, 0, 0);
+    floor.receiveShadow = true;
+    base.add(floor);
+
+    const body = new THREE.Mesh(
+        new THREE.BoxGeometry(8, 10, 7),
+        new THREE.MeshStandardMaterial({ color })
+    );
+    body.position.set(
+    0,
+    3.4,
+    0
+);
+
+    const outerS = new THREE.Mesh(
+        new THREE.BoxGeometry(8, 0.2, 7),
+        new THREE.MeshStandardMaterial({ color: 0x9aa0a6 })
+    );
+    outerS.position.set(0, body.position.y + 5 + 0.1, 0);
+    base.add(outerS);
+
+    // Create geometry + material
+    const geometry = new THREE.BoxGeometry(0.5, 4, 0.5);
+    const material = new THREE.MeshStandardMaterial({ color: 0x9aa0a6 });
+
+// Create original mesh (dr)
+    const dr = new THREE.Mesh(geometry, material);
+    
+
+// Duplicate it (dl)
+    const dl = dr.clone();
+const halfBaseWidth = 8 / 2;
+const halfPillarWidth = 0.5 / 2;
+
+const frontX = x > 0
+    ? -(halfBaseWidth + halfPillarWidth)
+    :  (halfBaseWidth + halfPillarWidth);
+
+
+
+dr.position.set(frontX, 2.45, 1.2);
+dl.position.set(frontX, 2.45, -1.2);
+
+    base.add(body);
+
+    base.add(dl);
+    base.add(dr);
+
+    
+    body.castShadow = true;
+
+
+    // Position base so floor touches road
+    base.position.set(x, 0, 0);
+
+
+    scene.add(base);
+    disableShadows(base);
+    return base;
+}
+
+const enemy_base_cannon  = createBaseCannon(redEndX, 0xff0000, "enemy_base_cannon");
+const player_base_cannon = createBaseCannon(blueEndX, 0x0000ff, "player_base_cannon");
+
+
+// ================= EXPLOSION =================
+const explosions = [];
+
+function spawnDebris(geometry, material, position) {
+    const piece = new THREE.Mesh(geometry, material);
+    piece.position.copy(position);
+
+    piece.userData.vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.6,
+        Math.random() * 0.6 + 0.2,
+        (Math.random() - 0.5) * 0.6
+    );
+
+    piece.userData.rotVel = new THREE.Vector3(
+        Math.random() * 0.25,
+        Math.random() * 0.25,
+        Math.random() * 0.25
+    );
+
+    scene.add(piece);
+    debris.push(piece);
+}
+
+
+function destroyBase(base) {
+    if (!base || base.userData.dead) return;
+    base.userData.dead = true;
+
+    const worldPos = new THREE.Vector3();
+    base.getWorldPosition(worldPos);
+
+    // sizes (match your base body)
+    const w = 8;
+    const h = 10;
+    const d = 7;
+    const t = 0.6; // wall thickness
+
+    const mat = new THREE.MeshStandardMaterial({
+    map: rustTexture,
+    roughness: 0.9,
+    metalness: 0.8
+});
+
+
+    // FRONT
+    spawnDebris(
+        new THREE.BoxGeometry(w, h, t),
+        mat,
+        worldPos.clone().add(new THREE.Vector3(0, h / 2, d / 2))
+    );
+
+    // BACK
+    spawnDebris(
+        new THREE.BoxGeometry(w, h, t),
+        mat,
+        worldPos.clone().add(new THREE.Vector3(0, h / 2, -d / 2))
+    );
+
+    // LEFT
+    spawnDebris(
+        new THREE.BoxGeometry(t, h, d),
+        mat,
+        worldPos.clone().add(new THREE.Vector3(-w / 2, h / 2, 0))
+    );
+
+    // RIGHT
+    spawnDebris(
+        new THREE.BoxGeometry(t, h, d),
+        mat,
+        worldPos.clone().add(new THREE.Vector3(w / 2, h / 2, 0))
+    );
+
+    // TOP
+    spawnDebris(
+        new THREE.BoxGeometry(w, t, d),
+        mat,
+        worldPos.clone().add(new THREE.Vector3(0, h, 0))
+    );
+
+    // explosion flash
+    const boom = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true })
+    );
+    boom.position.copy(worldPos).add(new THREE.Vector3(0, 5, 0));
+    scene.add(boom);
+    explosions.push({ mesh: boom, t: 0 });
+
+    scene.remove(base);
+}
+
+
+
+// ================= CONTROL PANEL =================
+document.getElementById("controlPanel").onclick = () => {
+    const cmd = prompt("write control code");
+    if (!cmd) return;
+
+    const [sel, name, action] = cmd.split(".");
+    if (sel !== "select") return;
+
+    const target = scene.getObjectByName(name);
+    if (!target) return alert("Base not found");
+
+    if (action === "destroy") destroyBase(target);
+};
+
+// ================= INPUT =================
+const input = { left: false, right: false };
+
+document.addEventListener("keydown", e => {
+    if (e.code === "ArrowLeft" || e.code === "KeyA") input.left = true;
+    if (e.code === "ArrowRight" || e.code === "KeyD") input.right = true;
+});
+document.addEventListener("keyup", e => {
+    if (e.code === "ArrowLeft" || e.code === "KeyA") input.left = false;
+    if (e.code === "ArrowRight" || e.code === "KeyD") input.right = false;
+});
+
+// ================= LOOP =================
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (input.left) camera.position.x -= MOVEMENT_SPEED;
+    if (input.right) camera.position.x += MOVEMENT_SPEED;
+
+    camera.position.x = Math.max(-CamLimit, Math.min(CamLimit, camera.position.x));
+
+    explosions.forEach((e, i) => {
+        e.t += 0.05;
+        e.mesh.scale.setScalar(1 + e.t * 4);
+        e.mesh.material.opacity = 1 - e.t;
+        if (e.t >= 1) {
+            scene.remove(e.mesh);
+            explosions.splice(i, 1);
+        }
+    });
+
+    // ================= RAGDOLL / DEBRIS =================
+for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+
+    // gravity
+    d.userData.vel.y -= 0.04;
+
+    // move
+    d.position.add(d.userData.vel);
+
+    // rotate
+    d.rotation.x += d.userData.rotVel.x;
+    d.rotation.y += d.userData.rotVel.y;
+    d.rotation.z += d.userData.rotVel.z;
+
+    // ground bounce
+    if (d.position.y < 0.5) {
+        d.position.y = 0.5;
+        d.userData.vel.y *= -0.3; // bounce
+        d.userData.vel.multiplyScalar(0.7); // friction
+    }
+
+    // stop when slow
+    if (d.userData.vel.length() < 0.02) {
+    d.userData.vel.set(0, 0, 0);
+    d.userData.rotVel.set(0, 0, 0);
+    debris.splice(i, 1);
+}
+
+}
+
+
+    renderer.render(scene, camera);
+}
+
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>
 
