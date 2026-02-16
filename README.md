@@ -4,8 +4,9 @@ i'm coding this while learning in school, so there might be some delay in this p
 
 
 link
-https://notreal-ooooooo.github.io/Bored-Page or https://bored-page.vercel.app/
-
+https://notreal-ooooooo.github.io/Bored-Page
+https://bored-page.vercel.app
+https://bored-page.wasmer.app
 _______________________________________________________________________________________________________________________________________
 
 inspired by z6dev
