@@ -38,7 +38,7 @@
 const debris = [];
 // ================= CONFIG =================
 const CamLimit = 10;
-const MOVEMENT_SPEED = 0.3;
+const MOVEMENT_SPEED = 0.6;//0.4
 
 // ================= SCENE =================
 const scene = new THREE.Scene();
@@ -46,7 +46,8 @@ scene.background = new THREE.Color(0x87CEEB);
 scene.fog = new THREE.Fog(0x87CEEB, 30, 140);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 4, 12);
+camera.position.set(0, 9, 18);
+camera.rotation.x = -0.25;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -91,8 +92,8 @@ floor.receiveShadow = true;
 scene.add(floor);
 
 // ================= ROAD =================
-const roadDepth = 8;
-const roadLength = CamLimit * 2;
+const roadDepth = 10;
+const roadLength = CamLimit * 3.3;
 
 const road = new THREE.Mesh(
     new THREE.BoxGeometry(roadLength, 0.5, roadDepth),
@@ -115,18 +116,19 @@ scene.add(curbFront);
 
 // ================= BASE POSITIONS =================
 const baseDepth = 12;
-const blueEndX = roadLength / 2 + baseDepth / 2;
-const redEndX  = -roadLength / 2 - baseDepth / 2;
+const blueEndX = roadLength / 2 + baseDepth / 2 - 1;
+const redEndX  = -roadLength / 2 - baseDepth / 2 + 1;
 
 // ================ BASE CREATION ===================
 
-function createBaseCannon(x, color, name) {
+function createBase(x, color, side, withCannon = false) {
     const base = new THREE.Group();
-    base.name = name;
 
+    // automatic name generation
+    base.name = `${side}_base_${withCannon ? "cannon" : "N"}`;
 
     const floor = new THREE.Mesh(
-        new THREE.BoxGeometry(15, 0.9, 12),
+        new THREE.BoxGeometry(11, 1, 12.1),
         new THREE.MeshStandardMaterial({ color: 0x333333 })
     );
     floor.position.set(0, 0, 0);
@@ -134,7 +136,7 @@ function createBaseCannon(x, color, name) {
     base.add(floor);
 
     const body = new THREE.Mesh(
-        new THREE.BoxGeometry(7, 7, 7),
+        new THREE.BoxGeometry(9, 6, 7),
         new THREE.MeshStandardMaterial({ color })
     );
     body.position.set(
@@ -143,12 +145,21 @@ function createBaseCannon(x, color, name) {
     0
 );
 
-    const outerS = new THREE.Mesh(
-        new THREE.BoxGeometry(8, 0.2, 7),
+    const cBodyB = new THREE.Mesh(
+        new THREE.BoxGeometry(7, 2, 5),
+        new THREE.MeshStandardMaterial({ color })
+    );
+    cBodyB.position.set(0, 7.4, 0)
+    
+
+    const cBodyg = new THREE.Mesh(
+        new THREE.BoxGeometry(9, 1, 7),
         new THREE.MeshStandardMaterial({ color: 0x9aa0a6 })
     );
-    outerS.position.set(0, body.position.y + 5 + 0.1, 0);
-    base.add(outerS);
+    cBodyg.position.set(0, 6.9, 0)
+    base.add(cBodyg);
+
+
 
     // Create geometry + material
     const geometry = new THREE.BoxGeometry(0.5, 4, 0.5);
@@ -160,7 +171,7 @@ function createBaseCannon(x, color, name) {
 
 // Duplicate it (dl)
     const dl = dr.clone();
-const halfBaseWidth = 7 / 2;
+const halfBaseWidth = 9 / 2;
 const halfPillarWidth = 0.5 / 2;
 
 const frontX = x > 0
@@ -172,26 +183,198 @@ const frontX = x > 0
 dr.position.set(frontX, 2.45, 1.2);
 dl.position.set(frontX, 2.45, -1.2);
 
+    
+    
     base.add(body);
 
     base.add(dl);
     base.add(dr);
 
+
+
+
+    
+// ===== DOOR ARCH =====
+const archMaterial = new THREE.MeshStandardMaterial({ color: 0x9aa0a6 });
+
+// top center
+const archTop = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.5, 1.3),
+    archMaterial
+);
+archTop.position.set(frontX, 5.4, 0);
+base.add(archTop);
+
+// upper front curve piece
+const archFront = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.5, 1.5),
+    archMaterial
+);
+archFront.position.set(frontX, 4.9, 0.85);
+archFront.rotation.x = 1;
+base.add(archFront);
+
+// upper back curve piece
+const archBack = archFront.clone();
+archBack.position.set(frontX, 4.9, -0.85);
+archBack.rotation.x = -1;
+base.add(archBack);    
+
+
+
+
+    
+
+    
+// ===== INNER DOOR (BLACK) =====
+const doorMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+
+const inset = -0.2; // declare ONCE
+
+const doorRect = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 4, 2.2),
+    doorMat
+);
+
+doorRect.position.set(
+    frontX + (x > 0 ? -inset : inset),
+    2.45,
+    0
+);
+
+base.add(doorRect);
+
+
+// ===== TRAPEZOID TOP =====
+const trapShape = new THREE.Shape();
+trapShape.moveTo(-1.1, 0);
+trapShape.lineTo(1.1, 0);
+trapShape.lineTo(0.6, 1.2);
+trapShape.lineTo(-0.6, 1.2);
+trapShape.lineTo(-1.1, 0);
+
+const trapGeo = new THREE.ShapeGeometry(trapShape);
+const trapMesh = new THREE.Mesh(trapGeo, doorMat);
+
+trapMesh.rotation.y = x > 0
+    ? -Math.PI / 2
+    :  Math.PI / 2;
+
+trapMesh.position.set(
+    frontX + (x > 0 ? -inset : inset),
+    4.45,
+    0
+);
+
+base.add(trapMesh);
+
+
+
+
+    
     
     body.castShadow = true;
 
+    if (withCannon) {
 
-    // Position base so floor touches road
+        const cBodyBrot = x > 0
+                ?  (0.9)
+                :  -(0.9);
+
+        cBodyB.rotation.z = cBodyBrot;
+
+        const cBodyBPos = x > 0
+            ?  -(1)
+            :  (1);
+        
+        cBodyB.position.set(cBodyBPos, 7.4, 0)
+        
+        const CB = new THREE.Mesh(
+        new THREE.BoxGeometry(3.5, 6.5, 5),
+        new THREE.MeshStandardMaterial({ color })
+    );
+
+    const CBPos = x > 0
+    ?  (1.76)
+    :  -(1.76);
+        
+    CB.position.set(CBPos, 7.9, 0)
+    base.add(CB);
+
+        const cannon = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 2.4, 2.4),
+        new THREE.MeshStandardMaterial({ color: 0x9aa0a6 })
+    );
+
+        const cannonPos = x > 0
+               ?  -(0.8)
+               :  (0.8);
+
+        cannon.position.set(cannonPos, 9.3, 0);
+        base.add(cannon);
+
+        const cannonB = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 2, 2),
+        new THREE.MeshStandardMaterial({ color: 0x000000 })
+    );
+
+        const cannonBPos = x > 0
+               ?  -(3.4)
+               :  (3.4);
+
+        cannonB.position.set(cannonBPos, 9.3, 0);
+        base.add(cannonB);
+
+        const CTip = new THREE.MeshStandardMaterial({ color: 0x9aa0a6 });
+        const CTpos = x > 0
+               ?  -(cannonBPos + 7)
+               :  (cannonBPos + 0.25);
+        
+
+const CTup = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.5, 2.4),
+    CTip
+);
+CTup.position.set(CTpos, 10.25, 0);
+base.add(CTup);
+
+const CTdown = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.5, 2.4),
+    CTip
+);    
+CTdown.position.set(CTpos, 8.37, 0);
+base.add(CTdown);
+
+const CTfar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 2.35, 0.5),
+    CTip
+);    
+CTfar.position.set(CTpos, 9.3, -1.2);
+base.add(CTfar);
+
+const CTclose = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 2.35, 0.5),
+    CTip
+);    
+CTclose.position.set(CTpos, 9.3, 1.2);
+base.add(CTclose);
+        
+    }
+
+    base.add(cBodyB);
+    
     base.position.set(x, 0, 0);
-
 
     scene.add(base);
     disableShadows(base);
+
     return base;
 }
 
-const enemy_base_cannon  = createBaseCannon(redEndX, 0xff0000, "enemy_base_cannon");
-const player_base_cannon = createBaseCannon(blueEndX, 0x0000ff, "player_base_cannon");
+
+    
+const enemyBase  = createBase(redEndX, 0xff0000, "enemy", false);
+const playerBase = createBase(blueEndX, 0x0000ff, "player", true);
 
 
 // ================= EXPLOSION =================
@@ -378,4 +561,3 @@ animate();
 
 </body>
 </html>
-
