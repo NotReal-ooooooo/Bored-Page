@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Math Thingy</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+          #ploBtn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 10px 18px;
+      font-size: 16px;
+      background-color: #ff5555;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #ploBtn:hover {
+      background-color: #ff2222;
+    }
+
+
+      
+  </style>
+</head>
+<body>
+
+      <button id="ploBtn" onclick="onPloClick()">Plo</button>
+    
+  <!-- iframe now has permissions for keyboard + clipboard -->
+<iframe
+  id="viewer"
+  src=""
+  allow="clipboard-read; clipboard-write; fullscreen; autoplay; gamepad; pointer-lock; cross-origin-isolated"
+  allowfullscreen
+  sandbox="allow-scripts allow-forms allow-popups allow-same-origin allow-pointer-lock allow-fullscreen"
+  tabindex="0"
+  style="width:100%;height:100%;border:none;display:block;"
+></iframe>
+
+
+  <script>
+      
+      let websiteURL = "https://urlplayeronline.com/" // https://cloudmoonapp.pages.dev
+      //https://eaglercraftx.pages.dev  https://urlplayeronline.com/   https://evolvesimulation.netlify.app/  poxel.io
+      //https://gta5movile.com/embed-videos-on-your-website-simple-free-tool
+
+      //https://liftapp.ai/id/remove-bg?utm_source=google_web_app&utm_campaign=google_web_app_test_product_ww_remove_bg_broad_10.07.2025&campaign_id=22775465694&utm_term=png+maker&gclid=Cj0KCQiAkPzLBhD4ARIsAGfah8hedsE1R9ov_0NjguwTqfJgNshESwiGbJ4ZxbflzA2zP9uERFZNfbYaAtHuEALw_wcB&gad_source=1&gad_campaignid=22775465694&gbraid=0AAAAACs1mea9F7EZyAS70369vpEZCuVwm
+
+      //https://www.youtube.com/watch?v=Edq3O0JQGoM  https://www.youtube.com/watch?v=u3Mr_JZ8g_M(short)  
+      //https://classroom.google.com/u/0/n/pck?v=z5liOt9DB1k(1 hour) 
+      //  https://classroom.google.com/u/0/n/pck?v=lDFY7Rtr2hY
+      // https://www.youtube.com/watch?v=6qPjxoE0phk
+      
+       const accessKey = "anomalinguawor123NiG31";
+const userKey = prompt("simplify 11a * 12a^3");
+if (userKey !== accessKey) {
+   setTimeout(() => {
+        window.open('', '_self');
+        window.close();
+      }, 1);
+}
+      
+    const viewer = document.getElementById("viewer");
+    viewer.src = websiteURL;
+
+    // Give iframe focus when clicked, so keyboard works
+    viewer.addEventListener("load", () => {
+      viewer.contentWindow.focus();
+    });
+
+    // Optional shortcut to close page with "/"
+    function onPloClick() {
+      setTimeout(() => {
+        window.open('', '_self');
+        window.close();
+      }, 1);
+    }
+  </script>
+</body>
+</html>
